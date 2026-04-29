@@ -1,9 +1,9 @@
 ---
-name: chrome-devtools-mcp
-description: chrome-devtools MCP の設定・接続を行い、Chrome ブラウザを操作する。「chrome-devtools MCP を使って欲しい」「chrome-devtools MCP を使いたい」「Chrome で操作して」「ブラウザで確認して」などのリクエストで使用する。
+name: chrome-devtools
+description: chrome-devtools MCP の設定・接続を行い、Chrome ブラウザを操作する。「chrome-devtools を使って欲しい」「Chrome で操作して」「ブラウザで確認して」などのリクエストで使用する。
 ---
 
-# chrome-devtools MCP セットアップ
+# chrome-devtools
 
 Chrome DevTools Protocol (CDP) 経由で Chrome ブラウザを操作するための MCP サーバーを設定・接続する。
 

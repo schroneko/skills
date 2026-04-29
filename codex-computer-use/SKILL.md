@@ -1,15 +1,13 @@
 ---
 name: codex-computer-use
-description: "`codex exec` 経由で Codex Computer Use MCP を呼び出し、macOS アプリやブラウザを読み取り・クリック・入力操作する。Computer Use の coding agent ベンダーロックインを外し、Claude Code など他エージェントから GUI 操作を代行したい場合に使用する。Chrome/Safari/Finder などの GUI 状態確認、ブラウザ UI 検証、アプリ操作、`SkyComputerUseClient` の直接 MCP 登録が失敗した場合に使用する。"
+description: "`codex exec` 経由で Codex.app の Computer Use を呼び出し、macOS アプリやブラウザを読み取り・クリック・入力操作する。Claude Code など、シェルコマンドを実行できる他エージェントから GUI 操作を代行したい場合に使用する。Chrome/Safari/Finder などの GUI 状態確認、ブラウザ UI 検証、アプリ操作に使う。"
 ---
 
 # Codex Computer Use
 
 ## Purpose
 
-Use Codex.app bundled CLI as a Computer Use bridge for another coding agent. The goal is to let an agent that can run shell commands delegate GUI work to `codex exec`, instead of depending on native Computer Use support in that agent.
-
-Do not register OpenAI's bundled `SkyComputerUseClient` directly in another agent's MCP config; macOS launch constraints can kill it when the parent process is not Codex.
+Use the Codex.app bundled CLI as a Computer Use bridge for another coding agent. The goal is to let an agent that can run shell commands delegate GUI work to `codex exec`, instead of depending on native Computer Use support in that agent.
 
 Use this pattern:
 
@@ -19,7 +17,7 @@ codex exec --sandbox read-only --ephemeral --skip-git-repo-check -C "$PWD" "PROM
 
 ## Install This Skill
 
-Install from the shared skills repository:
+Install from this skills repository:
 
 ```bash
 npx skills add schroneko/skills -g -a claude-code -a codex -s codex-computer-use -y
@@ -48,14 +46,14 @@ claude --version
 
 Expected:
 
-- `codex` should be the Codex.app bundled CLI, usually `/Applications/Codex.app/Contents/Resources/codex`
+- `codex` should be the Codex.app bundled CLI. On macOS app installs, it is often available under `/Applications/Codex.app/Contents/Resources/codex`
 - `claude` should run if the caller is Claude Code
 - `codex mcp list` should include `computer-use`
 - Target apps must be installed and running before `get_app_state`
 
 If `which codex` points to a CLI that is not bundled with Codex.app and Computer Use fails with Apple Event authentication errors, prefer the Codex.app bundled CLI.
 
-For Homebrew cask installs specifically, one working pattern is to remove the Homebrew cask and symlink the app bundled binary:
+If a Homebrew-installed `codex` is shadowing the Codex.app bundled CLI, one possible fix is to remove the cask and put the bundled binary on `PATH`:
 
 ```bash
 brew uninstall --cask codex
@@ -81,10 +79,10 @@ mdls -name kMDItemCFBundleIdentifier -raw /Applications/Google\ Chrome.app
 5. Start the target app before running `codex exec`.
 6. Run a read-only `get_app_state` smoke test before clicking or typing.
 
-The app approval file is:
+The app approval file usually lives under the user's home directory:
 
 ```text
-/Users/username/Library/Group Containers/2DC432GLL2.com.openai.sky.CUAService/Library/Application Support/Software/ComputerUseAppApprovals.json
+~/Library/Group Containers/2DC432GLL2.com.openai.sky.CUAService/Library/Application Support/Software/ComputerUseAppApprovals.json
 ```
 
 Expected shape:
@@ -157,38 +155,17 @@ Fix by either:
 - Run interactive `codex`, request a harmless `get_app_state` for the target app, and choose `Always allow`
 - Add the target bundle identifier to `ComputerUseAppApprovals.json` when the user has approved broad app access
 
-Common bundle identifiers:
+Common bundle identifier examples:
 
 ```text
-ai.elementlabs.lmstudio
-com.1password.1password
-com.amazon.Lassen
-com.anthropic.claudefordesktop
 com.apple.Safari
-com.apple.dt.Xcode
 com.apple.finder
-com.electron.ollama
 com.google.Chrome
-com.google.GeminiMacOS
-com.google.antigravity
-com.google.drivefs
-com.google.drivefs.shortcuts.docs
-com.google.drivefs.shortcuts.sheets
-com.google.drivefs.shortcuts.slides
-com.hnc.Discord
-com.mitchellh.ghostty
-com.tinyspeck.slackmacgap
-com.todesktop.230313mzl4w4u92
-pl.maketheweb.cleanshotx
-ru.keepcoder.Telegram
-us.zoom.xos
 ```
 
 ## Failure Handling
 
 For `Apple event error -10000: Sender process is not authenticated`, verify that `codex` points to the Codex.app bundled CLI. Homebrew-only CLI can see tools but fail Apple Events.
-
-For `Code Signature Invalid` or `SkyComputerUseClient quit unexpectedly` when started by Claude, do not retry direct MCP registration. Use `codex exec` as the bridge.
 
 For `appNotFound("Google Chrome")`, check whether Chrome is installed, currently being reinstalled, or not running. Start it and retry.
 

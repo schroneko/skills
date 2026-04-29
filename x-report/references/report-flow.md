@@ -1,47 +1,30 @@
 # X 報告フロー詳細
 
-投稿の報告 UI 操作の詳細手順。
+投稿の報告 UI 操作の詳細手順。操作手段は `x-report/SKILL.md` の実行環境に従う。
 
 ## Step 1: 投稿ページに移動
 
-```
-mcp__chrome-devtools__navigate_page(type="url", url="https://x.com/<username>/status/<id>")
-```
+Chrome のアドレスバーに投稿 URL を入力して移動する。既存タブを使う場合も、対象 URL 以外へ移動しない。
 
 ## Step 2: 投稿内容を確認
 
-```
-mcp__chrome-devtools__take_snapshot()
-```
+Chrome の表示状態を確認する。
 
 対象ユーザーの article 要素内にある投稿テキストを確認する。
 
 ## Step 3: More メニューを開く
 
-対象投稿の article 内にある `button "More"` (expandable, haspopup="menu") をクリック:
-
-```
-mcp__chrome-devtools__click(uid="<more_button_uid>")
-```
+対象投稿の article 内にある `button "More"` (expandable, haspopup="menu") をクリックする。
 
 注意: ページ上に複数の「More」ボタンがある。対象ユーザーの投稿 article 内のものを選ぶ。
 
 ## Step 4: Report post をクリック
 
-メニューが展開され `menuitem "Report post"` が表示される:
-
-```
-mcp__chrome-devtools__take_snapshot()
-mcp__chrome-devtools__click(uid="<report_post_uid>")
-```
+メニューが展開されたら `menuitem "Report post"` をクリックする。
 
 ## Step 5: カテゴリ選択ダイアログ
 
-ダイアログが表示されるまで待機:
-
-```
-mcp__chrome-devtools__wait_for(text="What are you reporting?", timeout=5000)
-```
+ダイアログが表示されるまで Chrome の表示状態を確認する。
 
 ダイアログ内の radio ボタンからカテゴリを選択。主なカテゴリ:
 
@@ -53,34 +36,19 @@ mcp__chrome-devtools__wait_for(text="What are you reporting?", timeout=5000)
 | Violent Speech             | 暴力的な発言       |
 | Impersonation              | なりすまし         |
 
-誹謗中傷の報告では通常「Hate, Abuse, or Harassment」を選択:
-
-```
-mcp__chrome-devtools__click(uid="<hate_radio_uid>")
-```
+誹謗中傷の報告では通常「Hate, Abuse, or Harassment」を選択する。
 
 ## Step 6: Next をクリック
 
-カテゴリ選択後「Next」ボタンが有効化される:
-
-```
-mcp__chrome-devtools__click(uid="<next_button_uid>", includeSnapshot=true)
-```
+カテゴリ選択後「Next」ボタンが有効化される。実報告では、ユーザーがその投稿とカテゴリを明示承認している場合だけクリックする。テストではクリックしない。
 
 ## Step 7: 送信確認
 
-ダイアログのタイトルが「Submitted」「Thanks for helping make X better for everyone」に変わる。
-通常のスナップショットでは dialog 内が見えないことがある。verbose モードで確認:
-
-```
-mcp__chrome-devtools__take_snapshot(verbose=true)
-```
+ダイアログのタイトルが「Submitted」「Thanks for helping make X better for everyone」に変わる。Chrome の表示状態を確認する。
 
 ## Step 8: Done をクリック
 
-```
-mcp__chrome-devtools__click(uid="<done_button_uid>")
-```
+「Done」をクリックして報告フローを閉じる。
 
 ## Step 9: 次の投稿へ
 
@@ -90,11 +58,11 @@ mcp__chrome-devtools__click(uid="<done_button_uid>")
 
 ### ダイアログの中身が見えない
 
-Next クリック後にダイアログ内容が空に見える場合がある。`verbose=true` でスナップショットを取ると dialog 内の要素が確認できる。
+Next クリック後にダイアログ内容が空に見える場合がある。Chrome の表示状態を再取得し、必要なら少し待ってから再確認する。
 
-### wait_for がタイムアウトする
+### ダイアログが見つからない
 
-ダイアログのテキストは英語。`"What are you reporting?"` または `"What type of issue are you reporting?"` で待機する。見つからなければ直接 `take_snapshot()` で確認する。
+ダイアログのテキストは英語。`"What are you reporting?"` または `"What type of issue are you reporting?"` が見つからなければ、Chrome の表示状態を再取得して確認する。
 
 ### 既に報告済みの投稿
 

@@ -1,19 +1,24 @@
 ---
 name: x-report
-description: X (Twitter) の投稿を chrome-devtools MCP 経由で報告する。スパムボットや誹謗中傷アカウントのプロフィール URL を渡すとリプライを探索・分析し、個別ポスト URL を渡すと直接報告する。「X で報告して」「この投稿を報告」「スパムを報告」「誹謗中傷を報告」などのリクエストで使用する。
+description: X (Twitter) の投稿をブラウザ GUI 操作で報告する。Codex が使える環境では codex-computer-use、Codex がない Claude Code 環境では chrome-devtools MCP を使う。スパムボットや誹謗中傷アカウントのプロフィール URL を渡すとリプライを探索・分析し、個別ポスト URL を渡すと直接報告する。「X で報告して」「この投稿を報告」「スパムを報告」「誹謗中傷を報告」などのリクエストで使用する。
 ---
 
 # X 投稿報告スキル
 
-chrome-devtools MCP を使って X (Twitter) の投稿を報告する。スパムボットと誹謗中傷の両方に対応。
+ブラウザ GUI 操作で X (Twitter) の投稿を報告する。スパムボットと誹謗中傷の両方に対応。
 
 ## 背景
 
 2026 年 2 月、X API v2 でプログラマティックリプライが制限された（@mention または引用されていない限り API 経由のリプライが不可に）。しかし既存のスパムボットや Web 自動化によるスパムは依然として存在する。このスキルはそうした違反アカウントの投稿を効率的に報告する。
 
+## 実行環境
+
+- Codex あり、Codex で使う: codex-computer-use スキルを使う
+- Codex あり、Claude Code で使う: codex-computer-use スキルを使う
+- Codex なし、Claude Code で使う: chrome-devtools MCP を使う
+
 ## 前提条件
 
-- chrome-devtools MCP が設定済みであること（未設定なら chrome-devtools-mcp スキルでセットアップ）
 - Chrome で X にログイン済みであること
 
 ## 入力形式
@@ -27,6 +32,14 @@ https://x.com/username/status/1234567890
 ```
 
 ## ワークフロー
+
+## 操作方法
+
+- 上の実行環境に従って操作手段を選ぶ
+- codex-computer-use では Computer Use の `get_app_state` で Chrome の状態を読み取り、`click` / `press_key` / `type_text` で必要最小限だけ操作する
+- chrome-devtools MCP では snapshot / click / navigation などの相当する操作に読み替える
+- codex-computer-use を `codex exec` 経由で使う場合は、プロンプトに `Use computer-use MCP only` と明記する
+- 報告対象以外のタブ、アカウント UI、拡張機能 UI には触らない
 
 ### パターン A: プロフィール URL
 
@@ -95,6 +108,9 @@ https://x.com/username/status/1234567890
 
 - 報告前に必ずユーザーの承認を得る
 - 報告カテゴリはユーザーに選んでもらう
+- 報告対象の URL はユーザーが明示したもの、またはユーザーに提示して承認されたものだけにする
+- 一括報告や大量報告はしない。複数件を扱う場合も、対象投稿ごとに確認する
+- 報告フローのテストでは、実在する投稿の Submit / Next / final submission に進まない
 - 同一内容でも投稿ごとに個別報告が必要
 - 報告後は X チームが数日かけてレビューする
 - 報告済み投稿はタイムラインから非表示になる
