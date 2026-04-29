@@ -1,19 +1,31 @@
 ---
 name: codex-computer-use
-description: Claude Code や Codex から `codex exec` 経由で Codex Computer Use MCP を使い、macOS アプリやブラウザを読み取り・クリック・入力操作する。Chrome/Safari/Finder などの GUI 状態確認、ブラウザ UI 検証、アプリ操作の代行、Claude Code から Computer Use を間接利用したい場合に使用する。`SkyComputerUseClient` を他エージェントの MCP として直接登録しようとして失敗した場合にも使用する。
+description: "`codex exec` 経由で Codex Computer Use MCP を呼び出し、macOS アプリやブラウザを読み取り・クリック・入力操作する。Computer Use の coding agent ベンダーロックインを外し、Claude Code など他エージェントから GUI 操作を代行したい場合に使用する。Chrome/Safari/Finder などの GUI 状態確認、ブラウザ UI 検証、アプリ操作、`SkyComputerUseClient` の直接 MCP 登録が失敗した場合に使用する。"
 ---
 
 # Codex Computer Use
 
 ## Purpose
 
-Use Codex.app bundled CLI as the Computer Use bridge. Do not register OpenAI's bundled `SkyComputerUseClient` directly in Claude Code; macOS launch constraints can kill it when the parent process is not Codex.
+Use Codex.app bundled CLI as a Computer Use bridge for another coding agent. The goal is to let an agent that can run shell commands delegate GUI work to `codex exec`, instead of depending on native Computer Use support in that agent.
+
+Do not register OpenAI's bundled `SkyComputerUseClient` directly in another agent's MCP config; macOS launch constraints can kill it when the parent process is not Codex.
 
 Use this pattern:
 
 ```bash
 codex exec --sandbox read-only --ephemeral --skip-git-repo-check -C "$PWD" "PROMPT"
 ```
+
+## Install This Skill
+
+Install from the shared skills repository:
+
+```bash
+npx skills add schroneko/skills -g -a claude-code -a codex -s codex-computer-use -y
+```
+
+Use the equivalent agent selection flags for other skill managers if they support Agent Skills.
 
 ## Preconditions
 
@@ -27,20 +39,33 @@ codex --version
 codex mcp list
 ```
 
+When running from Claude Code, also confirm:
+
+```bash
+which claude
+claude --version
+```
+
 Expected:
 
 - `codex` should be the Codex.app bundled CLI, usually `/Applications/Codex.app/Contents/Resources/codex`
+- `claude` should run if the caller is Claude Code
 - `codex mcp list` should include `computer-use`
 - Target apps must be installed and running before `get_app_state`
 
-If `which codex` points to a Homebrew-only CLI, prefer the Codex.app bundled CLI. One working pattern is to remove the Homebrew cask and symlink the app bundled binary:
+If `which codex` points to a CLI that is not bundled with Codex.app and Computer Use fails with Apple Event authentication errors, prefer the Codex.app bundled CLI.
+
+For Homebrew cask installs specifically, one working pattern is to remove the Homebrew cask and symlink the app bundled binary:
 
 ```bash
 brew uninstall --cask codex
 ln -s /Applications/Codex.app/Contents/Resources/codex /opt/homebrew/bin/codex
 ```
 
-Only do this after confirming the user wants the Codex.app bundled CLI to own `codex`.
+Only do this after confirming both conditions:
+
+- The machine installed `codex` through Homebrew.
+- The user wants the Codex.app bundled CLI to own `codex`.
 
 ## First-Time Setup
 
@@ -74,9 +99,9 @@ Expected shape:
 }
 ```
 
-## Claude Code Usage
+## Agent Usage
 
-Invoke Computer Use through `codex exec` from Bash. Keep the prompt explicit and constrained.
+Invoke Computer Use through `codex exec` from the calling agent's shell tool. Keep the prompt explicit and constrained. Claude Code can use this skill directly, but the same bridge pattern also works from any agent that can run `codex exec`.
 
 Read-only app inspection:
 
