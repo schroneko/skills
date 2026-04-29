@@ -17,9 +17,12 @@ codex exec --sandbox read-only --ephemeral --skip-git-repo-check -C "$PWD" "PROM
 
 ## Preconditions
 
+Installing this skill is not enough by itself. The host machine also needs Codex.app's Computer Use plugin, the Codex.app bundled CLI, and per-app Computer Use approval.
+
 Check these before diagnosing Computer Use failures:
 
 ```bash
+which codex
 codex --version
 codex mcp list
 ```
@@ -29,6 +32,29 @@ Expected:
 - `codex` should be the Codex.app bundled CLI, usually `/Applications/Codex.app/Contents/Resources/codex`
 - `codex mcp list` should include `computer-use`
 - Target apps must be installed and running before `get_app_state`
+
+If `which codex` points to a Homebrew-only CLI, prefer the Codex.app bundled CLI. One working pattern is to remove the Homebrew cask and symlink the app bundled binary:
+
+```bash
+brew uninstall --cask codex
+ln -s /Applications/Codex.app/Contents/Resources/codex /opt/homebrew/bin/codex
+```
+
+Only do this after confirming the user wants the Codex.app bundled CLI to own `codex`.
+
+## First-Time Setup
+
+1. Install and open Codex.app.
+2. Confirm `codex mcp list` shows `computer-use`.
+3. Confirm the target app exists and has a bundle identifier:
+
+```bash
+mdls -name kMDItemCFBundleIdentifier -raw /Applications/Google\ Chrome.app
+```
+
+4. Approve the app for Computer Use, either interactively or by editing the approval JSON after user consent.
+5. Start the target app before running `codex exec`.
+6. Run a read-only `get_app_state` smoke test before clicking or typing.
 
 The app approval file is:
 
@@ -109,15 +135,28 @@ Fix by either:
 Common bundle identifiers:
 
 ```text
-com.google.Chrome
-com.apple.Safari
-com.apple.finder
+ai.elementlabs.lmstudio
+com.1password.1password
+com.amazon.Lassen
 com.anthropic.claudefordesktop
-com.todesktop.230313mzl4w4u92
+com.apple.Safari
+com.apple.dt.Xcode
+com.apple.finder
+com.electron.ollama
+com.google.Chrome
+com.google.GeminiMacOS
+com.google.antigravity
+com.google.drivefs
+com.google.drivefs.shortcuts.docs
+com.google.drivefs.shortcuts.sheets
+com.google.drivefs.shortcuts.slides
+com.hnc.Discord
 com.mitchellh.ghostty
 com.tinyspeck.slackmacgap
-com.hnc.Discord
+com.todesktop.230313mzl4w4u92
+pl.maketheweb.cleanshotx
 ru.keepcoder.Telegram
+us.zoom.xos
 ```
 
 ## Failure Handling
