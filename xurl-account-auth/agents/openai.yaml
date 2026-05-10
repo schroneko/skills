@@ -1,0 +1,4 @@
+interface:
+  display_name: "Xurl Account Auth"
+  short_description: "Safely authenticate xurl account context"
+  default_prompt: "Use $xurl-account-auth to set up xurl for the active X account without leaking secrets."
