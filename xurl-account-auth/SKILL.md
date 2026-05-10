@@ -39,7 +39,7 @@ When browser authorization is involved, use Computer Use to inspect the X UI bef
 Use the bundled helper when the app entry already exists in `~/.xurl` with a Consumer/API key and secret:
 
 ```bash
-ruby scripts/oauth1-pin-auth.rb APP_NAME TARGET_USERNAME
+uv run --with pyyaml python scripts/oauth1-pin-auth.py APP_NAME TARGET_USERNAME
 ```
 
 The helper:
