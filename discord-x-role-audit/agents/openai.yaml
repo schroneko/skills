@@ -1,0 +1,4 @@
+interface:
+  display_name: "Discord X Role Audit"
+  short_description: "Audit Discord X-role members against their linked X profiles."
+  default_prompt: "Audit Discord members with the X role by opening their Discord profile connections and checking linked X profiles in Chrome. Produce follow-status and candidate CSV/JSON files without kicking anyone."
