@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex App Remote Exec"
+  short_description: "Remote commands through Codex App bridge"
+  default_prompt: "Use $codex-app-remote-exec to run a command on another connected host through Codex App remote-control."
