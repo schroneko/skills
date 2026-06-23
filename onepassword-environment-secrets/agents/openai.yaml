@@ -1,0 +1,4 @@
+interface:
+  display_name: "1Password Environment Secrets"
+  short_description: "Add variables to 1Password Environments"
+  default_prompt: "Use $onepassword-environment-secrets to add these environment variables to 1Password Environments."
