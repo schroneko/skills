@@ -1,0 +1,4 @@
+interface:
+  display_name: "Discord DM Cleanup"
+  short_description: "Delete your own messages in one Discord DM"
+  default_prompt: "Use $discord-delete-own-dm-messages to delete my own messages from this specific Discord DM, newest first."
