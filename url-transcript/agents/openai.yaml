@@ -1,0 +1,4 @@
+interface:
+  display_name: "URL Transcript"
+  short_description: "Get transcripts from video or webinar links"
+  default_prompt: "Use $url-transcript to get a transcript from this link."
