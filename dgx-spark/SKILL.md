@@ -10,11 +10,23 @@ description: NVIDIA DGX Spark (ARM64 + CUDA 13.0) 環境での開発ガイド。
 - アーキテクチャ: ARM64 (aarch64)
 - CUDA: 13.0
 - GPU: NVIDIA GB10 (sm_121, Blackwell)
-- VRAM: 119.7 GB
+- VRAM: 119.7 GB（CPU と共有のユニファイドメモリ）
+
+## メモリ管理（最重要）
+
+121GB のメモリは CPU と GPU で共有するユニファイドメモリで、使い切るとマシンごと落ちる。実際に flash-attn と gptqmodel を MAX_JOBS=10 で同時ソースビルドして DGX Spark がクラッシュした実績がある。
+
+- CUDA 拡張のソースビルド（flash-attn、gptqmodel、exllamav2/v3 など）は `MAX_JOBS=2` から `MAX_JOBS=4`、`NVCC_THREADS=1` に制限する
+- 重いビルドは 1 パッケージずつ順番に実行し、複数パッケージの同時ビルドをしない
+- ビルドとモデルロード・GPU ベンチマークを並行して走らせない
+- 長時間処理の開始前と途中で `free -h` を確認し、available が 30GB を切ったら並列度を下げるか処理を止める
+- GPU メモリもユニファイドメモリから取られるため、大きなモデルのロード中は CPU 側の余裕も同時に減る前提で計画する
 
 ## PyTorch インストール
 
-標準の PyTorch wheel は x86_64 のみ。ARM64 + CUDA 13.0 は PyTorch nightly から取得する。
+PyPI の stable torch 2.11.0 以降は ARM64 + CUDA 13（cu130）の wheel を同梱しており、`torch>=2.4` を PyPI からそのまま入れるだけで `torch.cuda.is_available()` が True になる（2026-07 に DGX Spark 実機で確認済み）。まず PyPI stable を試す。
+
+stable で ARM64 + CUDA wheel が取れない場合のみ、PyTorch nightly から取得する。
 
 pyproject.toml に torch と triton を両方明示し、uv.sources で nightly インデックスを指定する:
 
