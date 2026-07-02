@@ -100,8 +100,26 @@ brew untap OWNER/OLD-TAP
 brew install --cask OWNER/NAME/NAME
 ```
 
+## TCC 権限が必要なアプリ
+
+アクセシビリティや入力監視などの TCC 権限は、インストーラーや CLI からプログラムで付与できない。これは macOS の設計で、例外は MDM の PPPC プロファイル配布か、SIP を無効化した上での TCC.db 直接編集だけ。どちらも個人向け Homebrew 配布では使えない前提で設計する。
+
+- `tccutil` にできるのは reset だけで、grant はできない
+- 権限は bundle ID と署名に紐づく。アプリのリネームや bundle ID 変更で権限は引き継がれず、ユーザーの再付与が必要
+- cask に `caveats` を書き、インストール直後のターミナルに権限付与の手順を表示する
+
+```ruby
+caveats <<~EOS
+  AppName requires the macOS Accessibility permission.
+  Grant it in System Settings > Privacy & Security > Accessibility.
+EOS
+```
+
+- アプリ側では `AXIsProcessTrustedWithOptions` のプロンプトで設定画面へ誘導し、権限なしでも起動自体はできるようにする
+
 ## 注意点
 
+- tap リポジトリはパブリックにする。`brew tap` は匿名の https clone で取得するため、プライベートリポジトリのままだと `could not read Username for 'https://github.com'` で失敗する。公開できないアプリはこの配布方式を使えない
 - `brew tap OWNER/NAME` の短縮形に homebrew- プレフィックスなしのリポジトリは使えない。URL 指定 tap は 2 コマンドになるため採用しない
 - 近年の Homebrew はサードパーティ tap に trust 機構があり、未 trust の tap の cask は無視される。`brew install` 時の自動 trust で通常は解決するが、既存 tap で警告が出たら `brew trust --cask OWNER/TAP/NAME` を案内する
 - `brew tap` はリポジトリを丸ごと clone するため、アプリのソースも利用者に落ちる。リポジトリが巨大な場合はサイズに注意する
