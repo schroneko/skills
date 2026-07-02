@@ -1,0 +1,4 @@
+interface:
+  display_name: "Auto Click CDP Popup"
+  short_description: "Auto-click Chrome DevTools Protocol prompts"
+  default_prompt: "Use $auto-click-cdp-popup to start a watcher that clicks Chrome DevTools Protocol popups."
