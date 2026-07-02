@@ -5,42 +5,51 @@ description: Automatically click macOS or Chrome UI prompts that mention Chrome 
 
 # Auto Click CDP Popup
 
-Start a local macOS Accessibility watcher that accepts Chrome remote debugging prompts.
+Run the cdpclick macOS Accessibility watcher that accepts Chrome remote debugging prompts. The watcher is distributed only through Homebrew from `schroneko/homebrew-cdpclick`. Do not build or copy it locally.
 
-## Quick Start
-
-Run the bundled watcher from the skill directory:
+## Install
 
 ```bash
-scripts/auto-click-cdp-popup.sh
+brew install --cask schroneko/cdpclick/cdpclick
+cdpclick-install-agent
 ```
 
-The watcher uses AXObserver notifications for new Chrome windows and sheets, then falls back to a light 1-second refresh to catch missed UI events.
+`cdpclick-install-agent` registers a LaunchAgent that runs `/Applications/AutoClickCDPPopup.app` at login. After installing or upgrading, grant Accessibility permission to `AutoClickCDPPopup.app` in System Settings > Privacy & Security > Accessibility. The ad-hoc code signature changes on every release, so the permission must be re-granted after every `brew upgrade --cask cdpclick`.
 
-For always-on use, run `scripts/install-launch-agent.sh`. It installs `~/Applications/AutoClickCDPPopup.app`, signs it locally, and registers a LaunchAgent that starts it at login. Grant Accessibility permission to `AutoClickCDPPopup.app`.
+## Status Check
 
-For one popup only:
+Confirm the watcher is running and healthy:
 
 ```bash
-scripts/auto-click-cdp-popup.sh --once --timeout 30
+pgrep -fl AutoClickCDPPopup
+```
+
+Read the last lines of `~/Library/Logs/auto-click-cdp-popup/actions.log`. A healthy watcher logs `started: watching Chrome remote debugging prompts` and `clicked:` entries. Repeated `waiting: Accessibility permission is required` means the Accessibility permission is missing or was invalidated by a signature change; re-grant it in System Settings.
+
+## One-Shot Run
+
+For a single popup without the LaunchAgent:
+
+```bash
+/Applications/AutoClickCDPPopup.app/Contents/MacOS/auto-click-cdp-popup --once --timeout 30
 ```
 
 For a non-clicking check:
 
 ```bash
-scripts/auto-click-cdp-popup.sh --dry-run --once --timeout 10
+/Applications/AutoClickCDPPopup.app/Contents/MacOS/auto-click-cdp-popup --dry-run --once --timeout 10
 ```
 
-## Workflow
+## Uninstall
 
-1. Start the watcher before triggering Chrome DevTools Protocol automation.
-2. Keep it running while the automation may open a confirmation prompt.
-3. Stop it with `Ctrl-C` when the task is complete.
-4. If the script reports an Accessibility error, grant the current terminal or Codex host app macOS Accessibility permission, then rerun it.
+```bash
+cdpclick-uninstall-agent
+brew uninstall --cask cdpclick
+```
 
-## Script Behavior
+## Watcher Behavior
 
-`scripts/auto-click-cdp-popup.sh` compiles and runs the bundled Swift watcher. It uses macOS Accessibility notifications and clicks only when the accessible text for a Chrome UI element contains a Chrome remote debugging prompt.
+The watcher uses AXObserver notifications for new Chrome windows and sheets, then falls back to a light 1-second refresh. It clicks only when the accessible text for a Chrome UI element contains a Chrome remote debugging prompt.
 
 Matched prompt text:
 
@@ -71,7 +80,7 @@ Preferred button names are:
 - `開く`
 - `続ける`
 
-The script also accepts a button whose own label contains `Chrome DevTools Protocol`.
+It also accepts a button whose own label contains `Chrome DevTools Protocol`.
 
 ## Options
 
@@ -83,3 +92,7 @@ The script also accepts a button whose own label contains `Chrome DevTools Proto
 - `--dry-run`: Report the matched button without clicking.
 - `--log <path>`: Append timestamped results to a log file.
 - `--prompt-for-accessibility`: Show the macOS Accessibility permission prompt once. Do not use this in LaunchAgent mode.
+
+## Source
+
+The watcher source and cask live in `schroneko/homebrew-cdpclick`. Release a new version with `scripts/build-app.sh VERSION` and `gh release create` in that repository, then update `Casks/cdpclick.rb`.
