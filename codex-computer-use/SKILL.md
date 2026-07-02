@@ -55,6 +55,8 @@ Expected:
 
 If `which codex` points to a CLI that is not bundled with Codex.app and Computer Use fails with Apple Event authentication errors, prefer the Codex.app bundled CLI.
 
+The standalone CLI installed under `~/.codex/packages/standalone` (verified with codex-cli 0.142.0) launches SkyComputerUseClient from the plugin cache and passes Apple Events authentication as is. Switch to the bundled CLI only after an actual authentication failure.
+
 For Homebrew cask installs specifically, one working pattern is to remove the Homebrew cask and symlink the app bundled binary:
 
 ```bash
@@ -91,11 +93,7 @@ Expected shape:
 
 ```json
 {
-  "approvedBundleIdentifiers": [
-    "com.google.Chrome",
-    "com.apple.Safari",
-    "com.apple.finder"
-  ]
+  "approvedBundleIdentifiers": ["com.google.Chrome", "com.apple.Safari", "com.apple.finder"]
 }
 ```
 
