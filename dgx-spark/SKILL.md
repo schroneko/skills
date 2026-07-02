@@ -22,6 +22,18 @@ description: NVIDIA DGX Spark (ARM64 + CUDA 13.0) 環境での開発ガイド。
 - 長時間処理の開始前と途中で `free -h` を確認し、available が 30GB を切ったら並列度を下げるか処理を止める
 - GPU メモリもユニファイドメモリから取られるため、大きなモデルのロード中は CPU 側の余裕も同時に減る前提で計画する
 
+## Ubuntu パッケージ管理
+
+パッケージのインストール、削除、更新をエージェントやスクリプトから実行する場合は `apt-get` を使う。`man apt` では `apt` は end-user tool とされ、version 間で behavior が変わる可能性があるため、scripts では backward compatibility のため `apt-get` / `apt-cache` を prefer すべきと説明されている。
+
+例:
+
+```bash
+sudo apt-get install -y kitty
+```
+
+対話的に人間が手元で実行するだけなら `apt install kitty` でもよいが、DGX Spark スキル内の手順やエージェント実行では `apt-get` を優先する。
+
 ## PyTorch インストール
 
 PyPI の stable torch 2.11.0 以降は ARM64 + CUDA 13（cu130）の wheel を同梱しており、`torch>=2.4` を PyPI からそのまま入れるだけで `torch.cuda.is_available()` が True になる（2026-07 に DGX Spark 実機で確認済み）。まず PyPI stable を試す。
