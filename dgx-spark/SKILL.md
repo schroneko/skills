@@ -14,13 +14,21 @@ description: NVIDIA DGX Spark (ARM64 + CUDA 13.0) 環境での開発ガイド。
 
 ## メモリ管理（最重要）
 
-121GB のメモリは CPU と GPU で共有するユニファイドメモリで、使い切るとマシンごと落ちる。実際に flash-attn と gptqmodel を MAX_JOBS=10 で同時ソースビルドして DGX Spark がクラッシュした実績がある。
+121GB のメモリは CPU と GPU で共有するユニファイドメモリで、使い切るとマシンごと落ちる。実際に flash-attn と gptqmodel を MAX_JOBS=10 で同時ソースビルドして DGX Spark がクラッシュし、さらに flash-attn 単体を `MAX_JOBS=4 NVCC_THREADS=1 TORCH_CUDA_ARCH_LIST=12.1` に絞ってもクラッシュして再起動した実績がある。
 
-- CUDA 拡張のソースビルド（flash-attn、gptqmodel、exllamav2/v3 など）は `MAX_JOBS=2` から `MAX_JOBS=4`、`NVCC_THREADS=1` に制限する
+- flash-attn のソースビルドはこのマシンで禁止。flash-attn 依存のパッケージ（exllamav3 など）は aarch64 のプリビルド wheel が出るまで導入しない。どうしても必要ならユーザーの明示承認を得て `MAX_JOBS=1` で試す
+- その他の CUDA 拡張のソースビルド（gptqmodel、exllamav2 など）は `MAX_JOBS=2` から `MAX_JOBS=4`、`NVCC_THREADS=1` に制限する。gptqmodel 5.8.0 は MAX_JOBS=4 で数分でビルドできた
 - 重いビルドは 1 パッケージずつ順番に実行し、複数パッケージの同時ビルドをしない
 - ビルドとモデルロード・GPU ベンチマークを並行して走らせない
 - 長時間処理の開始前と途中で `free -h` を確認し、available が 30GB を切ったら並列度を下げるか処理を止める
 - GPU メモリもユニファイドメモリから取られるため、大きなモデルのロード中は CPU 側の余裕も同時に減る前提で計画する
+
+## CUDA 拡張のソースビルド知見
+
+- システム Python (`/usr/bin/python3`) には Python.h が無く、`--no-build-isolation` の CUDA 拡張ビルドが失敗する。`uv python install 3.12` と `uv sync --managed-python` で uv 管理 Python（ヘッダ同梱）に切り替える
+- torch をビルド時に参照するパッケージ（gptqmodel、flash-attn、exllamav2/v3）は `--no-build-isolation-package <pkg>` を付けて venv の torch を見せる
+- exllamav2 0.3.2 は config.h が無条件に `USE_AVX2` を定義していて aarch64 で `mm_malloc.h` エラーになる。`#if defined(__x86_64__)` ガードを当てれば JIT 拡張は sm_120 でビルド・動作する（上流バグ）
+- llama.cpp は `cmake -B build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=121` と `cmake --build build -j 4` で問題なくビルドできる（121 は自動で 121a に置換される）
 
 ## Ubuntu パッケージ管理
 
