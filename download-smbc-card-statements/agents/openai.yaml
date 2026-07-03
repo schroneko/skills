@@ -1,0 +1,4 @@
+interface:
+  display_name: "Download SMBC Card Statements"
+  short_description: "Save SMBC Vpass statements as CSV"
+  default_prompt: "Use -smbc-card-statements to save SMBC Vpass card statements into card-specific folders."
