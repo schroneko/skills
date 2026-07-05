@@ -1,0 +1,6 @@
+interface:
+  display_name: "Archive"
+  short_description: "Archive only the current Codex App thread"
+  default_prompt: "Use $archive to archive the current Codex App thread."
+policy:
+  allow_implicit_invocation: false
