@@ -35,6 +35,8 @@ mcp__chrome-devtools__take_snapshot()
 mcp__chrome-devtools__click(uid="<report_post_uid>")
 ```
 
+日本語 UI では対象投稿の 3 点メニューから `ポストを報告` を選択する。
+
 ## Step 5: カテゴリ選択ダイアログ
 
 ダイアログが表示されるまで待機:
@@ -59,6 +61,8 @@ mcp__chrome-devtools__wait_for(text="What are you reporting?", timeout=5000)
 mcp__chrome-devtools__click(uid="<hate_radio_uid>")
 ```
 
+日本語 UI では、スパム報告時に `スパム` を選択する。
+
 ## Step 6: Next をクリック
 
 カテゴリ選択後「Next」ボタンが有効化される:
@@ -81,6 +85,8 @@ mcp__chrome-devtools__take_snapshot(verbose=true)
 ```
 mcp__chrome-devtools__click(uid="<done_button_uid>")
 ```
+
+日本語 UI では `送信しました` を確認し、`完了` をクリックする。
 
 ## Step 9: 次の投稿へ
 
