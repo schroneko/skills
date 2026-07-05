@@ -1,13 +1,13 @@
 ---
 name: luma-participant-check
-description: Check Luma event guests against X profile and follow requirements. Use when Codex needs to review a Luma event guest table, extract pending guests and X profile links, identify missing/invalid/deleted/protected X accounts, use X relationship lookup to verify whether guests follow the logged-in organizer account, speed up read-only candidate checks with observed internal read APIs when safe, and report decline candidates without ever performing approve, decline, or other guest write actions.
+description: Check Luma event guests against X profile, follow, and recent-account-activity requirements. Use when Codex needs to review a Luma event guest table, extract pending guests and X profile links, identify missing/invalid/deleted/protected X accounts, use X relationship lookup to verify whether guests follow the logged-in organizer account, check whether candidates have posted from their own X account within the last month excluding repost-only activity using read-only internal APIs, manage X rate limits without causing 429s, and report decline or approval-support candidates without ever performing approve, decline, or other guest write actions.
 ---
 
 # Luma Participant Check
 
 ## Workflow
 
-Use this skill for Luma events whose approval rules require a valid X profile and following the organizer's X account.
+Use this skill for Luma events whose approval rules require a valid X profile, following the organizer's X account, and recent activity from the candidate's own X account.
 
 Never approve or decline guests. Never perform Luma or X write actions for this workflow. Produce review lists, verification summaries, and manual-operation batches only.
 
@@ -21,7 +21,11 @@ Manual review order:
 2. After the user manually declines that batch, refresh Luma and verify those guests moved out of `Pending Approval`.
 3. Only then run or report follow checks for the remaining valid public X accounts. Accounts that do not exist cannot follow the organizer, so do not mix missing-account declines with not-following declines.
 4. After the user manually handles not-following guests, refresh Luma again.
-5. Treat the remaining `Pending Approval` guests with valid public X accounts and `followed_by` as approve candidates.
+5. For remaining `Pending Approval` guests with valid public X accounts and `followed_by`, check account activity in strict stages. First identify accounts whose total post count is zero and report only that decline batch.
+6. After the user manually declines zero-post accounts, refresh Luma and verify those guests moved out of `Pending Approval`.
+7. Only then identify accounts with posts but no non-repost post from the account within the last month. Report that as a separate decline batch.
+8. After the user manually handles the no-recent-own-post batch, refresh Luma again.
+9. Treat remaining guests as approve candidates only when the account has at least one non-repost post from the account within the last month.
 
 ## Required Browser State
 
@@ -44,6 +48,8 @@ If the user gives the normal guests URL, derive the guest table URL from the eve
 - Do not use X search or external search to infer relationships.
 - Use X relationship lookup in batches for follow verification.
 - Stop immediately and report status if any X request returns HTTP 429.
+- For X recent activity checks, do not crawl profile UI. Use read-only internal X APIs only, except for a few exploratory probe requests needed to identify the current internal endpoint shape.
+- After internal API shape is confirmed, switch immediately to scripted internal API reads. Do not continue opening or scrolling X profiles one by one.
 - Keep request batches small, normally 50 handles per request.
 - Do not expose auth cookies, CSRF tokens, bearer tokens, or raw request headers in the final answer.
 - Repair obvious X URL typos before marking a row invalid, such as `https:/x.com/<handle>`, `http:/x.com/<handle>`, bare `x.com/<handle>`, or a broken anchor whose visible text still contains `x.com/<handle>`.
@@ -145,6 +151,46 @@ Interpret results:
 - X profile UI says the account does not exist: decline candidate for invalid X profile
 - X profile UI says posts are protected: decline candidate for protected account
 
+## X Recent Activity Check
+
+Run this only after the guest has a valid public X account and `followed_by` is confirmed.
+
+Use the logged-in browser profile only as an authenticated context for read-only internal X API requests. Do not inspect candidate timelines by scrolling or opening each X profile. A few probe requests are acceptable to confirm the current internal API endpoint shape; once the shape is understood, use scripted internal API reads and stop UI-based inspection.
+
+Activity requirement:
+
+- The account must have at least one post from the account within the last month.
+- Separate decline patterns by stage. Report accounts with `legacy.statuses_count === 0` first, wait for the user to handle that batch, refresh Luma, and only then report accounts that have posts but no qualifying post within the last month.
+- Reposts do not count.
+- A reply or quote can count only when it includes the candidate's own text and appears on the candidate's account timeline.
+- If the visible recent timeline contains only reposts, treat it as no qualifying recent activity.
+- If a pinned post is before the cutoff date, do not count it just because it appears at the top of the profile.
+- If an article contains a repost marker such as `<name>さんがリポスト`, treat it as a repost even when the candidate handle appears somewhere inside the article text.
+- If the visible timeline shows recent reposts but the newest non-repost by the candidate is before the cutoff, treat the account as not approve-ready.
+- If the timeline cannot be read confidently because of protected, deleted, suspended, or unavailable account state, keep it out of approve candidates and report it separately.
+
+Observed internal API path:
+
+- Use `UserByScreenName` first to resolve `rest_id`, account protection, and `legacy.statuses_count`.
+- Treat `legacy.statuses_count === 0` as no posts.
+- Use GraphQL `UserTweets` for timeline reads. In this environment, `UserTweets` returned timeline data while `UserTweetsAndReplies`, `SearchTimeline`, `users/lookup.json`, and `users/show.json` returned 404. Do not use those failed endpoints unless a fresh probe proves they work.
+- Request only enough timeline data to answer the activity question, such as `count: 100`.
+- Treat reposts as non-qualifying when `legacy.retweeted_status_result` exists or the full text starts with `RT @`.
+- Read the author handle from `core.user_results.result.core.screen_name`. Do not rely on `legacy.screen_name`; in observed `UserTweets` responses that field was missing and caused false inactive results.
+- Compare tweet `legacy.created_at` against the absolute cutoff timestamp.
+- If every checked row becomes inactive, treat that as a parser failure until raw samples prove otherwise. Inspect one raw `UserTweets` sample and fix the parser before reporting names.
+
+Rate-limit handling:
+
+- Track `x-rate-limit-remaining`, `x-rate-limit-limit`, and `x-rate-limit-reset` for every internal X request.
+- If `x-rate-limit-remaining` is low, for example 5 or less, stop before hitting 429 and wait until `x-rate-limit-reset`.
+- Do not describe this as a 429. Report it as a preemptive stop before rate-limit exhaustion.
+- If an actual 429 occurs, stop immediately and report the checked count, saved result file, endpoint, remaining/reset metadata if available, and that no approve or decline action was taken.
+
+Use absolute dates in the working notes and final summary when applying the one-month cutoff. For example, on 2026-07-05, the cutoff is 2026-06-05.
+
+Do not over-fetch timelines. Check only enough internal timeline data to determine whether there is at least one qualifying non-repost post after the cutoff, or that the account has no qualifying visible post in that window. Validate this workflow on a small set of real candidate profiles before changing this section again.
+
 ## Reporting
 
 Report concise sections:
@@ -152,6 +198,8 @@ Report concise sections:
 - Confirmed decline candidates: no valid X profile
 - Confirmed decline candidates: protected X account
 - Confirmed decline candidates: not following the organizer
+- Confirmed decline candidates: zero X posts
+- Not approve-ready: X posts exist, but no qualifying non-repost X post within the last month
 - Unknown: lookup did not return a usable account
 - Manual batch verification: which proposed names are now `Not Going`, which remain `Pending Approval`, and which were not found in the current virtual table scan
 - Verification: total candidates checked, X request count, whether 429 occurred
