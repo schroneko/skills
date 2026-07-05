@@ -1,0 +1,4 @@
+interface:
+  display_name: "Luma Participant Check"
+  short_description: "Check Luma guests against X follow rules"
+  default_prompt: "Use $luma-participant-check to find Luma guests who should be declined based on X profile and follow requirements."
