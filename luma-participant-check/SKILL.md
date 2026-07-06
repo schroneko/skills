@@ -87,6 +87,16 @@ node /path/to/luma-participant-check/scripts/extract-luma-api-candidates.mjs /pa
 
 Spot-check suspicious names and duplicate names against raw `registration_answers` before reporting. Duplicate display names can refer to different guests with different statuses and X handles.
 
+## Identity and Duplicate Handling
+
+Treat display names as labels only, not identities. Always key Luma guests by `api_id` plus normalized X handle when comparing extraction results, manual decline confirmations, activity checks, and approval-support candidates.
+
+- Normalize X handles case-insensitively and strip leading `@`.
+- Treat duplicate display names as separate guest records even when the visible name is identical.
+- Report duplicate-prone rows as `name @handle status` so the user can distinguish them.
+- Do not collapse pending candidates by display name.
+- When a row moves between `Pending Approval`, `Approved`, `Declined`, or `Not Going`, verify the specific `api_id` and normalized X handle rather than a same-name row.
+
 DOM fallback:
 
 Scroll or use the extraction helper until the full table is loaded.
