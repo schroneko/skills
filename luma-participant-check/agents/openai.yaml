@@ -1,4 +1,4 @@
 interface:
   display_name: "Luma Participant Check"
-  short_description: "Check Luma guests with X follow and internal-API activity rules"
-  default_prompt: "Use $luma-participant-check to review Luma guests against X profile, follow, and recent account activity requirements using read-only internal APIs without taking approve or decline actions."
+  short_description: "Check Luma guests with X, affiliation, and activity rules"
+  default_prompt: "Use $luma-participant-check to review Luma guests against X profile, follow, affiliation, and recent account activity requirements using read-only internal APIs without taking approve or decline actions."

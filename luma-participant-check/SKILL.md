@@ -1,6 +1,6 @@
 ---
 name: luma-participant-check
-description: Check Luma event guests against X profile, follow, and recent-account-activity requirements. Use when Codex needs to review a Luma event guest table, extract pending guests and X profile links, identify missing/invalid/deleted/protected X accounts, use X relationship lookup to verify whether guests follow the logged-in organizer account, check whether candidates have posted from their own X account within the last month excluding repost-only activity using read-only internal APIs, manage X rate limits without causing 429s, and report decline or approval-support candidates without ever performing approve, decline, or other guest write actions.
+description: Check Luma event guests against X profile, follow, mutual-follow, affiliation, and recent-account-activity requirements. Use when Codex needs to review a Luma event guest table, extract pending guests and X profile links, identify missing/invalid/deleted/protected X accounts, use X relationship lookup to verify whether guests follow the logged-in organizer account, check whether candidates have posted from their own X account within the last month excluding repost-only activity using read-only internal APIs, prioritize mutual follows before followed-by-only candidates, check whether a specific X handle registered and what current Luma status it has, manage X rate limits without causing 429s, and report decline or approval-support candidates without ever performing approve, decline, or other guest write actions.
 ---
 
 # Luma Participant Check
@@ -26,6 +26,8 @@ Manual review order:
 7. Only then identify accounts with posts but no non-repost post from the account within the last month. Report that as a separate decline batch.
 8. After the user manually handles the no-recent-own-post batch, refresh Luma again.
 9. Treat remaining guests as approve candidates only when the account has at least one non-repost post from the account within the last month.
+10. For approval support, prioritize mutual follows before followed-by-only accounts. Do not use first-come order as a decision rule unless the user explicitly asks for it.
+11. Within each priority group, split or annotate candidates by the user's requested review dimensions, such as plan, affiliation clarity, or role. Keep each table limited to current `Pending Approval` guests unless the user explicitly asks for another status set.
 
 ## Required Browser State
 
@@ -96,6 +98,32 @@ Treat display names as labels only, not identities. Always key Luma guests by `a
 - Report duplicate-prone rows as `name @handle status` so the user can distinguish them.
 - Do not collapse pending candidates by display name.
 - When a row moves between `Pending Approval`, `Approved`, `Declined`, or `Not Going`, verify the specific `api_id` and normalized X handle rather than a same-name row.
+
+## Affiliation Review
+
+Use affiliation review only after valid X-account checks are done and the user asks to split or prioritize remaining candidates by organization. Do not run affiliation review before missing, invalid, deleted, suspended, protected, not-following, zero-post, and no-recent-own-post decline batches when those rules are active.
+
+Extract affiliation from the exact Luma work or school question. Prefer a stable question id from the event, or a label containing `Where do you work or study`, `お勤め先`, or `学校`.
+
+Classify affiliation as clear when it contains a company, school, public institution, organization, or specific self-employment or freelance context. Examples of clear values include a company name, university name, public agency, `フリーランスエンジニア`, and `個人事業主` with concrete client or work context.
+
+Classify affiliation as weak or needing review when it is only a location, generic word, or non-affiliation status. Examples include `東京`, `work`, `Individual`, `現在転職中です`, and broad industry labels like `Digital Consulting Firm` when no actual organization or concrete self-employment identity is given.
+
+Report affiliation splits as tables and keep only current `Pending Approval` rows unless the user explicitly asks for a different status set.
+
+## Specific Handle Status Checks
+
+When the user asks whether a specific X URL or handle registered, is approved, is participating, or canceled, refresh Luma or use a just-refreshed Luma API snapshot, then match by normalized X handle from the exact X-profile answer.
+
+Report a compact table with:
+
+- Luma name
+- X link
+- plan
+- affiliation
+- current Luma status
+
+Interpret `Approved` as approved to attend. Interpret `Pending Approval` as not yet approved. Interpret `Declined` as not approved. Interpret `Not Going` or equivalent canceled status as canceled or not attending. Do not infer cancellation from fields such as `has_joined_event: false` or `joined_at: null`; those are not the approval status.
 
 DOM fallback:
 
@@ -210,6 +238,9 @@ Report concise sections:
 - Confirmed decline candidates: not following the organizer
 - Confirmed decline candidates: zero X posts
 - Not approve-ready: X posts exist, but no qualifying non-repost X post within the last month
+- Approval support: mutual follows and followed-by-only candidates
+- Affiliation split: clear affiliation vs weak or needs-review affiliation
+- Specific handle status: whether a handle registered and its current Luma status
 - Unknown: lookup did not return a usable account
 - Manual batch verification: which proposed names are now `Not Going`, which remain `Pending Approval`, and which were not found in the current virtual table scan
 - Verification: total candidates checked, X request count, whether 429 occurred
