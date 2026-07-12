@@ -1,0 +1,4 @@
+interface:
+  display_name: "X Search"
+  short_description: "Search X posts through your existing Grok subscription"
+  default_prompt: "Use $x-search to find recent X posts about this topic and cite the exact post URLs."
