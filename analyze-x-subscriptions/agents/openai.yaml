@@ -1,0 +1,4 @@
+interface:
+  display_name: "Analyze X Subscriptions"
+  short_description: "Analyze X subscription counts, pricing, and revenue"
+  default_prompt: "Use $analyze-x-subscriptions to analyze X creator subscription counts, pricing, posts, and estimated monthly revenue."
