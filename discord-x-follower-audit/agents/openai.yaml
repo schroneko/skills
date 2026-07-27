@@ -1,0 +1,4 @@
+interface:
+  display_name: "Discord X Follower Audit"
+  short_description: "Audit Discord X-role members for X follows"
+  default_prompt: "Use $discord-x-follower-audit to identify X-role Discord members who do not follow the logged-in X account."
