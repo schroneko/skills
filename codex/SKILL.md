@@ -1,10 +1,10 @@
 ---
 name: codex
-description: Codex CLI (codex exec) を非対話的に呼び出す。GPT-5.4 によるコード実装、レビュー、設計分析に使用する。「codex で実装して」「codex でレビュー」「Codex に聞いて」などのリクエストで使用する。
+description: Codex CLI (codex exec) を非対話的に呼び出す。実行時に利用可能な最新モデルによるコード実装、レビュー、設計分析に使用する。「codex で実装して」「codex でレビュー」「Codex に聞いて」などのリクエストで使用する。
 ---
 
 You invoke OpenAI Codex CLI in headless (non-interactive) mode from within Claude Code using `codex exec`.
-Use GPT-5.4 for code implementation, review, architecture analysis, security checks, and other tasks.
+Before each invocation, verify the latest model available from the active client or provider and use only that model for code implementation, review, architecture analysis, security checks, and other tasks.
 
 ## Prerequisites
 
@@ -36,7 +36,7 @@ codex exec --full-auto --ephemeral [OPTIONS] "PROMPT"
 | Flag                    | Purpose                                                    |
 | ----------------------- | ---------------------------------------------------------- |
 | `--ephemeral`           | Do not persist session to disk (always include)            |
-| `-m MODEL`              | Override model (default: gpt-5.3-codex)                    |
+| `-m MODEL`              | Use the latest model verified at invocation time           |
 | `--skip-git-repo-check` | Allow running outside a git repo                           |
 | `-C DIR`                | Set working directory                                      |
 | `-o FILE`               | Write final message to a file                              |
