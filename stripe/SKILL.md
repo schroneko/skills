@@ -17,20 +17,19 @@ Stripe 決済の導入から運用までをカバーする。
 | Secret Key      | `sk_test_*` / `sk_live_*` | サーバー側（秘匿必須）   |
 | Webhook Secret  | `whsec_*`                 | Webhook 署名検証用       |
 
-### 1Password への保存
+### 1Password Environment への保存
 
-プロジェクトごとに API キーを分離する:
+ローカル開発用の値は既存の 1Password Environment に保存する。vault item は作らない。
 
-```bash
-op item create --category="API Credential" --title="Stripe Live API Keys (プロジェクト名)" --vault="Private" \
-  "Publishable key=pk_live_xxx" \
-  "Secret key=sk_live_xxx" \
-  "Webhook secret=whsec_xxx"
-```
+- `STRIPE_PUBLISHABLE_KEY`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+
+追加・更新には `$onepassword-environment-secrets` を使い、実行時は `op run --environment "$OP_ENVIRONMENT_ID" -- <command>` で注入する。
 
 ### Cloudflare Workers への設定
 
-公開キーは `wrangler.toml` の `[vars]` に、秘匿キーは secret に設定:
+公開キーは `wrangler.toml` の `[vars]` に、秘匿キーは Worker secret に設定する。Cloudflare 操作には 1Password を使わず、Wrangler の OAuth セッションを使う。
 
 ```toml
 [vars]
@@ -38,8 +37,9 @@ STRIPE_PUBLISHABLE_KEY = "pk_live_xxx"
 ```
 
 ```bash
-echo "sk_live_xxx" | npx wrangler secret put STRIPE_SECRET_KEY
-echo "whsec_xxx" | npx wrangler secret put STRIPE_WEBHOOK_SECRET
+wrangler whoami
+wrangler secret put STRIPE_SECRET_KEY
+wrangler secret put STRIPE_WEBHOOK_SECRET
 ```
 
 ## Webhook 設定
@@ -175,16 +175,18 @@ curl -s -X POST "https://api.stripe.com/v1/refunds" \
 ### 切替手順
 
 1. Stripe Dashboard で本番キーを取得
-2. `wrangler.toml` の `STRIPE_PUBLISHABLE_KEY` を更新
-3. `wrangler secret put` で秘匿キーを更新
-4. Webhook を本番モードで作成し、シークレットを更新
-5. デプロイ
+2. 1Password Environment のローカル開発用変数を更新
+3. `wrangler.toml` の `STRIPE_PUBLISHABLE_KEY` を更新
+4. `wrangler secret put` で Worker secret を更新
+5. Webhook を本番モードで作成し、シークレットを更新
+6. デプロイ
 
 ```bash
-# 本番用シークレットに切替
-echo "sk_live_xxx" | npx wrangler secret put STRIPE_SECRET_KEY
-echo "whsec_xxx" | npx wrangler secret put STRIPE_WEBHOOK_SECRET
-npm run build && npx wrangler deploy
+wrangler whoami
+wrangler secret put STRIPE_SECRET_KEY
+wrangler secret put STRIPE_WEBHOOK_SECRET
+npm run build
+wrangler deploy
 ```
 
 ## Cloudflare Workers での注意点
@@ -218,5 +220,5 @@ Webhook 署名検証には `Stripe.createSubtleCryptoProvider()` を使用する
 Webhook エンドポイントが正しく設定されているか確認:
 
 ```bash
-npx wrangler tail --format=pretty
+wrangler tail --format=pretty
 ```

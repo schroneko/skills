@@ -46,12 +46,13 @@ Price ID (`price_xxx`) を控えておく。月額・年額それぞれ必要。
 ## Step 2: 環境変数を設定
 
 ```bash
-echo "sk_test_xxx" | npx wrangler secret put STRIPE_SECRET_KEY
-echo "whsec_xxx" | npx wrangler secret put STRIPE_WEBHOOK_SECRET
-echo "price_xxx" | npx wrangler secret put STRIPE_PRICE_PLUS_MONTHLY
-echo "price_xxx" | npx wrangler secret put STRIPE_PRICE_PLUS_YEARLY
-echo "price_xxx" | npx wrangler secret put STRIPE_PRICE_PRO_MONTHLY
-echo "price_xxx" | npx wrangler secret put STRIPE_PRICE_PRO_YEARLY
+wrangler whoami
+wrangler secret put STRIPE_SECRET_KEY
+wrangler secret put STRIPE_WEBHOOK_SECRET
+wrangler secret put STRIPE_PRICE_PLUS_MONTHLY
+wrangler secret put STRIPE_PRICE_PLUS_YEARLY
+wrangler secret put STRIPE_PRICE_PRO_MONTHLY
+wrangler secret put STRIPE_PRICE_PRO_YEARLY
 ```
 
 型定義に追加:
