@@ -1,90 +1,82 @@
 ---
 name: secrets
-description: 1Password CLI (op) によるシークレット管理ガイド。API キーの取得・保管、GitHub Secrets の設定、1Password アイテムの作成・削除を行う。「API キーを取得」「シークレットを設定」「op item get」「1Password」「環境変数にキーを設定」などのリクエストで使用する。
+description: 1Password Environments とサービスアカウントによるシークレット管理ガイド。API キー、credential、token、環境変数、GitHub Secrets の取得・登録・検証を安全に行う。
 ---
 
 # シークレット管理
 
-API キーやトークンは 1Password CLI (`op`) で管理する。
+API キーやトークンは既存の 1Password Environment `.env` に保存し、Mac Studio では汎用サービスアカウント `mac-studio-development` から読み取る。
 
-## サービスアカウント
+## 構成
 
-`OP_SERVICE_ACCOUNT_TOKEN` が環境変数にセット済み。指紋認証なしで `op` コマンドが使える。
+- Environment ID: `~/.config/op/environment-id`
+- サービスアカウントトークン: `~/.config/op/service-account-token`
+- トークンファイル権限: `600`
+- シェル変数: `OP_ENVIRONMENT_ID`、`OP_SERVICE_ACCOUNT_TOKEN`
+- vault access: なし
+- Environment access: `.env` の読み取り
 
-- vault は Automation のみアクセス可能。`--vault Automation` 必須
-- 読み取り専用。作成・編集・削除は `OP_SERVICE_ACCOUNT_TOKEN="" op ...` で実行 (指紋認証が出る)
+Environment がシークレットの保管先であり、サービスアカウントは読み取り用の認証主体にすぎない。変数をサービスアカウントへ移す手順は存在しない。
 
-## シークレットの保管ルール
+## 禁止事項
 
-- `settings.json` の `env` にシークレットを書かない (git 管理対象)
-- `.env` / `.dev.vars` は使わない。`op item get` や `op run` で都度取得する
-- `.zshrc` 等のシェル設定に `export SECRET=` を書かない
-- 本番デプロイ: `wrangler secret put` や CI/CD で 1Password から取得して設定
+- `op item list`、`op item get`、`op item create`、`op item delete` を使わない
+- `op://` vault secret reference や `.env.1password` を作らない
+- `op signin`、Touch ID、1Password app integration へ切り替えない
+- Keychain、リポジトリ、同期フォルダ、シェル設定へ secret 値を書かない
+- secret 値、部分値、長さ、エンコード表現を出力しない
+- Environment 対応 CLI が使えないときに vault item へフォールバックしない
 
-## 1Password CLI の使用例
+## 実行前確認
 
-```bash
-op item get "ITEM_NAME" --fields credential --reveal --vault Automation
-op item get "ITEM_NAME" --format json --vault Automation | jq '.fields[] | {label, type}'
-op item list --vault Automation
-op run --env-file=.env.1password -- npm run dev
+実行中の 1Password CLI が Environments 対応 beta build であることを確認する。
+
+```sh
+op environment --help
+op run --help
+op whoami --format json
 ```
 
-フィールド名は `credential` (API キー用) または `password` (ログイン用) が一般的。
+`op whoami` は `SERVICE_ACCOUNT` を返す必要がある。失敗時は次を確認して停止する。
 
-注意:
+- `~/.config/op/service-account-token` が存在し、権限が `600`
+- `~/.zshenv` が `OP_SERVICE_ACCOUNT_TOKEN` を読み込んでいる
+- `op environment` と `op run --environment` が利用できる CLI build
 
-- `op item get` で値を取得する際は `--reveal` フラグが必要
-- `--vault Automation` を常に指定する (省略するとエラー)
-- 同じアイテムを 2 回取得しない。一度取得したら変数に保存して再利用する
-- `--category` の値は表示名そのまま (例: `"API Credential"`, `"Secure Note"`)
-- アイテムの作成・編集・削除はサービスアカウントではできない
+## Environment の利用
 
-## 個人アカウントでの操作 (作成・編集・削除)
+Environment 全体へのアクセス確認は値を表示せずに行う。
 
-サービスアカウントを一時的に無効化し、個人アカウント (指紋認証) で実行:
-
-```bash
-OP_SERVICE_ACCOUNT_TOKEN= op item delete "ITEM_NAME" --vault Automation
-OP_SERVICE_ACCOUNT_TOKEN= op item create --category "API Credential" --title "NAME" --vault Automation
+```sh
+op environment read "$OP_ENVIRONMENT_ID" >/dev/null
 ```
+
+コマンドへ変数を注入する。
+
+```sh
+op run --environment "$OP_ENVIRONMENT_ID" -- <command>
+```
+
+特定変数の存在だけを確認する場合も値を出力しない。
+
+```sh
+op run --environment "$OP_ENVIRONMENT_ID" -- sh -c 'test -n "$OPENAI_API_KEY"'
+```
+
+## 追加・更新
+
+Environment 変数の追加・更新は `$onepassword-environment-secrets` を使う。既存変数名を確認してから追加し、重複を作らない。完了後は変数名とアクセス成功だけを報告する。
 
 ## GitHub Secrets
 
-`gh secret set SECRET_NAME --repo owner/repo --body "value"` で設定。
+ユーザーが対象 repository と変数名を明示して登録を依頼した場合だけ、Environment から対象プロセスへ注入して設定する。
 
-### Cloudflare Workers デプロイ用
-
-1Password アイテム「GitHub Actions - Cloudflare Workers」に `credential` (API トークン) と `account_id` が格納:
-
-```bash
-gh secret set CLOUDFLARE_API_TOKEN --body "$(op item get 'GitHub Actions - Cloudflare Workers' --fields credential --reveal)"
-gh secret set CLOUDFLARE_ACCOUNT_ID --body "$(op item get 'GitHub Actions - Cloudflare Workers' --fields account_id --reveal)"
+```sh
+op run --environment "$OP_ENVIRONMENT_ID" -- sh -c 'printf "%s" "$OPENAI_API_KEY" | gh secret set OPENAI_API_KEY --repo owner/repo'
 ```
 
-## 主要キー名一覧
+値は標準出力、ログ、チャットへ出さない。
 
-インフラ:
+## Cloudflare
 
-- `GitHub Actions - Cloudflare Workers` - Cloudflare Workers デプロイ用
-- `GitHub Actions - Fly.io` - Fly.io デプロイ用
-- `CLOUDFLARE_GLOBAL_API_KEY` - Cloudflare グローバル API キー
-- `HF_TOKEN` - Hugging Face CLI 認証用
-- `GITHUB_TOKEN` - GitHub API 用
-
-AI/LLM:
-
-- `ANTHROPIC_API_KEY` - Claude API
-- `OPENAI_API_KEY` - OpenAI API
-- `OPENROUTER_API_KEY` - OpenRouter API
-- `GOOGLE_AI_STUDIO_API_KEY` - Google AI Studio
-- `XAI_API_KEY` - xAI API
-
-メール:
-
-- `RESEND_API_KEY_*` - Resend (プロジェクト別に複数あり)
-
-決済:
-
-- `Stripe Test API Keys (*)` - Stripe テスト用
-- `Stripe Live API Keys` - Stripe 本番用
+Cloudflare の認証には 1Password、`op run`、`CLOUDFLARE_API_TOKEN` を使わない。mise 管理の Wrangler と既存 OAuth セッションだけを使い、実行前に `wrangler whoami` で確認する。

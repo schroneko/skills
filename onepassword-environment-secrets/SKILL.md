@@ -1,86 +1,87 @@
 ---
 name: onepassword-environment-secrets
-description: Add, update, and verify environment variables in 1Password Environments. Use when the user asks to put secrets, API keys, credentials, tokens, partner tags, or project env vars into 1Password Environments, or asks to use op run with an Environment.
+description: Add, update, and verify environment variables in 1Password Environments. Use when the user asks to store API keys, credentials, tokens, partner tags, or project environment variables in 1Password Environments.
 ---
 
 # 1Password Environment Secrets
 
-Use this skill to place project environment variables into a 1Password Environment without exposing secret values in chat, logs, screenshots, or repository files.
+Store project environment variables in the existing 1Password Environment without exposing secret values in chat, logs, screenshots, repositories, or synchronized files.
+
+## Canonical configuration
+
+- Environment: `.env`
+- Environment ID file: `~/.config/op/environment-id`
+- Service account: `mac-studio-development`
+- Service account token file: `~/.config/op/service-account-token`
+- Token file mode: `600`
+- Authentication variables: `OP_ENVIRONMENT_ID`, `OP_SERVICE_ACCOUNT_TOKEN`
+
+The Environment stores the variables. The service account only authenticates read access and does not contain variables itself.
 
 ## Core rules
 
-- Prefer 1Password Environments over vault items for project env vars when the user asks for Environments.
-- Do not use `op item list`, `op item get`, vault item secret references, or old dedicated token flows as substitutes.
-- Do not stop just because `op environment` lacks a write command. Use the 1Password desktop app UI or another available 1Password Environment tool to complete the mutation.
-- Do not reveal, print, summarize, screenshot, or paste secret values into chat.
-- Do not commit or leave temporary files containing secrets.
-- If a value is unavailable, derive it from the provided local artifact only when the user explicitly provided that artifact as the source of truth.
+- Use 1Password Environments instead of vault items.
+- Do not use `op item`, `op://` references, `.env.1password`, `op signin`, Touch ID, app integration, or Keychain.
+- Never print, reveal, summarize, screenshot, or paste secret values.
+- Never store secrets in a repository, synchronized directory, shell configuration, command history, or log.
+- Do not fall back to vault items when Environment access fails.
+- Resolve the default Environment from `OP_ENVIRONMENT_ID`.
+- Check existing variable names before adding or updating them.
 
-## Fast path
+## Read-only orientation
 
-1. Identify the target Environment.
-   - If the user names one, use it.
-   - If 1Password is already open to an Environment, treat that Environment as the target unless the user said otherwise.
-   - If no target is discoverable, ask for the Environment name or ID.
-2. Identify variables to add or update.
-   - Use exact variable names requested by the user or required by the target tool.
-   - For credentials CSV files, parse only the required fields and never print values.
-3. Check for existing variables by name in the Environment UI before adding.
-4. Add or update variables in 1Password Environments.
-5. Save the Environment.
-6. Verify by visible variable names only or with `op environment read <environment-id>` if an ID is available and values remain masked.
-7. Delete any temporary secret-bearing files immediately.
-
-## CLI checks
-
-Use these commands for read-only orientation:
+Verify that the active CLI build supports Environments and that authentication uses a service account.
 
 ```sh
-op --version
 op environment --help
-op environment read --help
 op run --help
+op whoami --format json
 ```
 
-Use `op environment read <environment-id>` only when an Environment ID is known. It may print variables; rely on 1Password masking and do not relay values.
+`op whoami` must report `SERVICE_ACCOUNT`. If it does not, inspect the local token file, its permissions, shell loading, and the CLI build. Do not run `op signin`.
 
-Use `op run --environment <environment-id> -- <command>` to validate a command can receive Environment variables. Do not add fallback env vars outside 1Password unless the user explicitly asks.
+Verify Environment access without returning its contents.
 
-## Desktop app workflow
+```sh
+op environment read "$OP_ENVIRONMENT_ID" >/dev/null
+```
 
-Use Computer Use when the 1Password desktop app is required.
+Verify one required variable without returning its value.
 
-1. Open or focus 1Password.
-2. Navigate to Developer > Environments > target Environment.
-3. On Variables, search for the variable prefix to avoid duplicates.
-4. Prefer Import `.env` file for multiple variables.
-5. If importing:
-   - Create the temporary `.env` under the current task `work/` directory with mode `0600`.
-   - Include only the variables requested or required.
-   - Select Import `.env` file in 1Password.
-   - Choose the temporary file.
-   - Confirm the imported variable names are shown.
-   - Click Save.
-   - Delete the temporary file.
-6. If manually adding:
-   - Click New variable.
-   - Enter name and value.
-   - Repeat for each variable.
-   - Click Save.
+```sh
+op run --environment "$OP_ENVIRONMENT_ID" -- sh -c 'test -n "$OPENAI_API_KEY"'
+```
 
-## Temporary file pattern
+## Add or update variables
 
-Use a deterministic local script or command that does not print secrets. The temporary file path must be under `work/` for projectless tasks or the repository-local scratch area for repo tasks.
+1. Identify the exact variable names and the authorized source of each value.
+2. Open the existing logged-in 1Password.com session in Chrome.
+3. Open Developer, Environments, then `.env`.
+4. Inspect variable names without revealing their values.
+5. Update an existing variable or add a missing variable.
+6. Save the Environment.
+7. Verify access through `op run --environment "$OP_ENVIRONMENT_ID"`.
 
-After importing, verify deletion with `ls -l <temp-file>`. A "No such file or directory" result is expected after cleanup.
+If variable editing is only available in the desktop app, stop before OS interaction and ask the user to perform the required UI step. Do not use Computer Use.
+
+## Temporary files
+
+Prefer direct entry and avoid temporary files. When the user explicitly authorizes file import:
+
+- Create the file outside repositories and synchronized directories.
+- Use a dedicated temporary directory.
+- Set the file mode to `600`.
+- Include only the requested variables.
+- Delete it immediately after a successful import.
+- Verify that it no longer exists.
 
 ## Reporting
 
 Report only:
 
-- Target Environment name if visible.
+- Target Environment name.
 - Variable names added or updated.
-- Verification performed.
-- Temporary secret file cleanup status.
+- Access verification result.
+- Temporary file cleanup result when applicable.
 
-Do not report secret values, partial values, lengths, encoded forms, clipboard contents, or screenshots showing revealed values.
+Do not report values, partial values, lengths, encoded forms, clipboard contents, or screenshots containing revealed values.
