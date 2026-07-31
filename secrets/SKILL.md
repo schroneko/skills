@@ -79,4 +79,4 @@ op run --environment "$OP_ENVIRONMENT_ID" -- sh -c 'printf "%s" "$OPENAI_API_KEY
 
 ## Cloudflare
 
-Cloudflare の認証には 1Password、`op run`、`CLOUDFLARE_API_TOKEN` を使わない。mise 管理の Wrangler と既存 OAuth セッションだけを使い、実行前に `wrangler whoami` で確認する。
+Cloudflare の認証には 1Password、`op run`、`CLOUDFLARE_API_TOKEN` を使わない。mise 管理の Wrangler と既存 OAuth セッションだけを使い、実行前に `wrangler whoami` で確認する。ローカル Worker へアプリ用 runtime secret を注入する場合だけ `op run --environment` を使い、必要な変数だけを binding 名へ割り当ててから `OP_SERVICE_ACCOUNT_TOKEN` と `OP_ENVIRONMENT_ID` を子プロセス環境から除く。
