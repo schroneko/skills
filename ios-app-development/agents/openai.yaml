@@ -1,0 +1,4 @@
+interface:
+  display_name: "iOS App Development"
+  short_description: "Build, verify, and release SwiftUI iPhone apps"
+  default_prompt: "Use $ios-app-development to build, verify, archive, and release this SwiftUI iPhone app to internal TestFlight."
