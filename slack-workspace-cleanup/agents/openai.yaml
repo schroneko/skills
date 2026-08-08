@@ -1,0 +1,4 @@
+interface:
+  display_name: "Slack Workspace Cleanup"
+  short_description: "Classify workspaces and open safe deactivation pages"
+  default_prompt: "Use $slack-workspace-cleanup to review my Slack workspaces and open deactivation pages without confirming any deactivation."
