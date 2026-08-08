@@ -1,6 +1,6 @@
 ---
 name: macos-app-build
-description: macOS ネイティブアプリのビルドと実行を行う。XcodeGen + xcodebuild のワークフロー、オートメーション権限のリセット、トラブルシューティングをカバーする。「アプリをビルドして」「実行して」「macOS アプリを作って」などのリクエストで使用する。
+description: macOS ネイティブアプリのビルド、実行、Homebrew Cask 管理アプリの更新を行う。XcodeGen + xcodebuild、正規インストール経路、オートメーション権限、トラブルシューティングをカバーする。「アプリをビルドして」「実行して」「macOS アプリを作って」「Homebrew 経由で更新して」などのリクエストで使用する。
 ---
 
 # macOS App Build
@@ -48,6 +48,18 @@ tccutil reset AppleEvents BUNDLE_ID
 ```bash
 open ~/Library/Developer/Xcode/DerivedData/PROJECT-*/Build/Products/Debug/APP.app
 ```
+
+## Homebrew Cask 管理アプリ
+
+Homebrew Cask で導入済みのアプリは、ビルド成果物を `/Applications` へ `ditto`、`cp`、`mv` で直接配置しない。直接配置は Homebrew の receipt と実体を不整合にするため、インストール完了として扱わない。
+
+1. 新しいバージョンの配布アーカイブを正規の release 手順で公開する
+2. Cask の `version` と `sha256` を更新して commit、反映対象ブランチへ push する
+3. 更新後の Cask を取得して `brew upgrade --cask TOKEN` を実行する。同じバージョンを再導入する正当な理由がある場合だけ `brew reinstall --cask TOKEN` を使う
+4. Cask が定める post-install または常駐起動手順を実行する
+5. `brew info --cask TOKEN`、Caskroom、`/Applications` のバージョンと checksum、実行中プロセスを確認する
+
+Cask が新しい配布物を参照する前に `brew reinstall` しない。公開済みの旧アーカイブへ戻るため、ローカルビルド成功の検証にはならない。
 
 ## トラブルシューティング
 
