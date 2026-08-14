@@ -1,4 +1,4 @@
 interface:
   display_name: "Manage FeedManager"
-  short_description: "Inspect and manage FeedManager feeds safely"
-  default_prompt: "Use $manage-feedmanager to inspect or manage FeedManager feeds through the first-party operator interface."
+  short_description: "Inspect Discord /add and FeedManager delivery"
+  default_prompt: "Use $manage-feedmanager to inspect Discord /add failures and FeedManager delivery without registering feeds from Codex."
