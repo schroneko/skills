@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manage FeedManager"
+  short_description: "Inspect and manage FeedManager feeds safely"
+  default_prompt: "Use $manage-feedmanager to inspect or manage FeedManager feeds through the first-party operator interface."
