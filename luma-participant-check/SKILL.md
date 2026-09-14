@@ -69,7 +69,7 @@ Read-only acceleration:
 - Prefer already-observed Luma requests that return guest rows, registration answers, status, and profile links.
 - Reuse only requests that are clearly read-only. GET requests are usually acceptable. POST requests are acceptable only when the body is clearly a read/query request and does not include mutation-like operation names or action fields.
 - Save the read result as JSON and derive pending candidates from the current `status`.
-- When parsing Luma `registration_answers`, extract the X handle only from the exact X profile question. Prefer a stable question id from the event, or a label containing `あなたの X のプロフィールリンク`, `X のプロフィールリンク`, `X profile`, or `Twitter profile`.
+- When parsing Luma `registration_answers`, extract the X handle only from the exact X question. Prefer a stable question id from the event, `question_type: "twitter"`, or a label containing `あなたの X のプロフィールリンク`, `X のプロフィールリンク`, `X のハンドル`, `X (Twitter) handle`, `X profile`, or `Twitter profile`.
 - Do not infer X handles from arbitrary short answers in other registration questions, such as role, company, LinkedIn, terms, or experience fields.
 - Use `scripts/extract-luma-api-candidates.mjs` on saved Luma API JSON when using read-only acceleration.
 - If read-only status is ambiguous, do not replay the request. Use the DOM extraction helper instead.
@@ -179,15 +179,15 @@ Run the generated function on an X page while logged in as the organizer. It per
 
 - `friendships/lookup.json` to read `connections`
 
-Do not run bulk `users/lookup.json` by default. A single inactive, deleted, or renamed handle can make a batch return a noisy 404 and hide valid users in the same batch. Use X profile UI checks or targeted single-account read checks only when protected or deleted-account validation is still needed.
+Do not run bulk `users/lookup.json` by default. A single inactive, deleted, or renamed handle can make a batch return a noisy 404 and hide valid users in the same batch. Use targeted internal API reads only when protected or deleted-account validation is still needed.
 
 Interpret results:
 
 - `connections` contains `followed_by`: the guest follows the organizer
 - `connections` does not contain `followed_by`: decline candidate for not following
 - no lookup result: unknown, usually missing/deleted/suspended/renamed
-- X profile UI says the account does not exist: decline candidate for invalid X profile
-- X profile UI says posts are protected: decline candidate for protected account
+- The internal API returns no usable user result: keep the account in the unresolved or invalid-account category
+- The internal API returns a protected user: decline candidate for protected account
 
 ## X Recent Activity Check
 
@@ -221,13 +221,30 @@ Observed internal API path:
 Rate-limit handling:
 
 - Track `x-rate-limit-remaining`, `x-rate-limit-limit`, and `x-rate-limit-reset` for every internal X request.
-- If `x-rate-limit-remaining` is low, for example 5 or less, stop before hitting 429 and wait until `x-rate-limit-reset`.
+- If `x-rate-limit-remaining` is low, for example 5 or less, stop before hitting 429, persist the batch result and resume cursor, and return without sleeping.
+- Use the saved `x-rate-limit-reset` timestamp on the next invocation to determine whether a batch can resume. Do not block the current process waiting for reset.
 - Do not describe this as a 429. Report it as a preemptive stop before rate-limit exhaustion.
 - If an actual 429 occurs, stop immediately and report the checked count, saved result file, endpoint, remaining/reset metadata if available, and that no approve or decline action was taken.
 
 Use absolute dates in the working notes and final summary when applying the one-month cutoff. For example, on 2026-07-05, the cutoff is 2026-06-05.
 
 Do not over-fetch timelines. Check only enough internal timeline data to determine whether there is at least one qualifying non-repost post after the cutoff, or that the account has no qualifying visible post in that window. Validate this workflow on a small set of real candidate profiles before changing this section again.
+
+## Resumable Activity Scan
+
+Activity checks must use the following sequence after a fresh Luma extraction. The current Luma candidate file is authoritative for `Pending Approval`; cached X data never restores a guest whose Luma status changed.
+
+1. Create the current candidate file with `scripts/extract-luma-api-candidates.mjs`.
+2. Plan one batch with `scripts/plan-x-activity-scan.mjs <candidates.json> --event-id <event-id> --cutoff <iso> --output <plan.json>`.
+3. Generate the browser function with `scripts/build-x-activity-eval.mjs <plan.json>` and run that function through Chrome DevTools `evaluate_script` on the logged-in X page. Save the returned JSON as a batch result file.
+4. Merge the saved result with `scripts/merge-x-activity-scan.mjs <batch-result.json> --event-id <event-id> --output <report.json>`.
+5. Refresh or re-extract Luma, then repeat the planning step until the report is complete.
+
+The default cache root is `~/Library/Application Support/luma-participant-check`. User records are stored under `users/<rest_id>.json`, and event scan state is stored under `scans/<event_id>.json`. These files contain normalized timeline fields, cursors, classifications, and numeric rate-limit metadata only. They never contain cookies, CSRF tokens, bearer tokens, raw request headers, or raw response bodies.
+
+Cache hits are classified locally without an X request. A fixed historical cutoff needs no new X request once the cached timeline reaches the cutoff. A moving current-week window can be run with `--freshness-minutes 1440` to refresh only the latest page for stale users. A batch that reaches the rate reserve or a request budget is saved and returned immediately; it never sleeps inside the scanner.
+
+Before every new batch, refresh Luma and exclude guests no longer in `Pending Approval`. Never use profile scrolling, `SearchTimeline`, public X API endpoints, account rotation, proxy rotation, or any other bypass. Never approve or decline a guest.
 
 ## Reporting
 

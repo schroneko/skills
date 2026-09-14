@@ -47,8 +47,12 @@ const normalizeHandle = raw => {
 const isXQuestion = answer => {
   const label = String(answer.label || '').toLowerCase();
   if (xQuestionId && answer.question_id === xQuestionId) return true;
+  if (String(answer.question_type || '').toLowerCase() === 'twitter') return true;
   if (label.includes('あなたの x のプロフィールリンク')) return true;
   if (label.includes('x のプロフィールリンク')) return true;
+  if (label.includes('x のハンドル')) return true;
+  if (label.includes('x handle')) return true;
+  if (label.includes('twitter handle')) return true;
   if (label.includes('x profile')) return true;
   if (label.includes('twitter profile')) return true;
   return false;
@@ -76,7 +80,8 @@ for (const guest of entries) {
   if (status.toLowerCase() !== 'pending_approval' && status !== 'Pending Approval') continue;
   const raw = extractXAnswer(guest);
   const handle = normalizeHandle(raw);
-  const row = {name: String(guest.name || ''), handle, xLink: String(raw || ''), status};
+  const apiId = String(guest.api_id || guest.apiId || guest.id || guest.guest_id || '').trim();
+  const row = {apiId, name: String(guest.name || ''), handle, xLink: String(raw || ''), status};
   pending.push(row);
   if (handle) candidates.push(row);
   else invalidX.push(row);
