@@ -1,0 +1,4 @@
+interface:
+  display_name: "Event Credit Distribution"
+  short_description: "Reconcile checked-in guests and deliver credits safely"
+  default_prompt: "Use $event-credit-distribution to reconcile checked-in event guests with form handles and per-recipient Codex/API credit inventories, then deliver only explicitly authorized recipients with confirmed-send and no-retry safeguards."
