@@ -67,6 +67,8 @@ Do not infer an inventory mapping from line position unless the source format ex
 
 Render the approved template from the manifest immediately before sending. Use only the pair assigned to the current form row. Check that the rendered message contains the expected Codex URL and API code and contains no unresolved placeholder.
 
+Codex inventory values may already be a bare `chatgpt.com/codex/p/<token>` URL, an `https://chatgpt.com/codex/p/<token>` URL, or a bare token. Normalize exactly once: preserve a value that already has the canonical Codex URL prefix, and prepend `chatgpt.com/codex/p/` only to a bare token. Never prepend the prefix unconditionally. Before marking a candidate `ATTEMPTED`, require that the rendered message contains the expected canonical URL, contains no nested prefix such as `chatgpt.com/codex/p/chatgpt.com/codex/p/`, contains no unresolved `XXX`, and contains the canonical URL exactly once. A failed URL preflight is a hold and must not be sent.
+
 Keep PINs, session tokens, passwords, and other credentials out of the message, skill, checklist, and logs. If the transport displays an `XChat PIN:` prompt, enter the PIN only into the designated terminal prompt and never into the chat composer or a saved artifact.
 
 ## Sending and confirmation
