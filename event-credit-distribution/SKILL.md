@@ -19,7 +19,7 @@ Collect or locate:
 - The approved message template with placeholders such as `{{codex_url}}` and `{{api_code}}`.
 - Organizer exclusions and any direct organizer-confirmed identity links.
 
-Keep event data in the event workspace, not in this skill. A useful event workspace contains a Luma snapshot, a mapping report, source inventories, and `delivery-checklist.md`. Preserve existing filenames and local conventions when they already exist.
+Keep event data in the event workspace, not in this skill. A useful event workspace contains a Luma snapshot, a mapping report, source inventories, a deduplicated `distribution-list.csv` send queue, and `delivery-checklist.md`. Preserve existing filenames and local conventions when they already exist.
 
 The final report must distinguish eligible, held, excluded, attempted, confirmed-sent, and unknown records. Link the checklist and mapping report when they are created or updated.
 
@@ -41,6 +41,8 @@ Never approve, decline, check in, or otherwise mutate Luma while performing this
 Build a manifest before sending. Each candidate must have exactly one form row, one checked-in Luma record or documented manual link, one Codex URL, and one API code.
 
 Deduplicate before assigning inventory or creating the send queue. Group eligible form rows by normalized recipient handle, and allow at most one canonical row per normalized handle in the send manifest. Keep one row per group, preferably the earliest source row unless the organizer specifies another row, and mark every other duplicate row `HOLD` with reason `DUPLICATE_RECIPIENT`. If one row in a duplicate group is already `SENT_CONFIRMED`, all other rows in that group remain `HOLD`; never assign another credit pair or send again. The checklist may retain duplicate source rows for audit, but only the canonical row is sendable.
+
+Write the durable send queue after reconciliation. `distribution-list.csv` must contain only canonical, not-yet-sent rows with status `READY` that pass every eligibility, exclusion, duplicate, and inventory check. Do not include `SENT_CONFIRMED`, `HOLD`, `EXCLUDED`, or `UNKNOWN` rows in the send queue; retain those states in the checklist and mapping report for audit.
 
 The manifest should include:
 
