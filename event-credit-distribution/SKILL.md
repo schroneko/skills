@@ -36,6 +36,21 @@ The final report must distinguish eligible, held, excluded, attempted, confirmed
 
 Never approve, decline, check in, or otherwise mutate Luma while performing this reconciliation.
 
+## Source extraction and filter order
+
+Use this order so a send queue cannot be built from a partial or mismatched source:
+
+1. Read spreadsheet metadata first, then use the exact localized tab title and the configured X-handle column. For the Astra Commons workflow this was the tab `フォームの回答 1` and the X-handle column D. Read the full bounded populated response range, not a sample, preserve source row numbers and raw values, and do not guess `Sheet1` or include empty rows outside the response range.
+2. Read the complete paginated Luma guest set through the read-only guest endpoint. Follow every cursor or `has_more` page, retain the source timestamp, and filter to records whose approval status is approved and whose current `checked_in` status is true.
+3. Inspect the required Luma registration answer for the X-handle question, such as the registration answer identified by `question_type-twitter`. Do not substitute the dedicated `twitter_handle` field when the required answer is populated elsewhere.
+4. Normalize the form handle and the required Luma answer by trimming whitespace, removing a leading `@`, extracting an X profile path handle when present, and comparing case-insensitively. Keep raw values, normalized values, Luma `api_id`, approval status, and check-in timestamp in the mapping.
+5. Keep only exact normalized matches. A typo, near-match, display-name match, email-only overlap, or a separate Luma record is a hold until the organizer explicitly confirms the identity and intended recipient. A documented manual link is an allowed exception, but it must retain the conflicting raw records and the organizer's reason.
+6. Apply organizer exclusions before inventory assignment. A participant-entered organizer handle, an excluded form row, or any other explicit exclusion is `EXCLUDED` and must never enter the send queue.
+7. Deduplicate the remaining candidates by normalized recipient handle before assigning credits. Keep one canonical source row, preferably the earliest row, and mark every other row `HOLD`; if one duplicate was already sent, all other rows remain held.
+8. Remove candidates already marked `SENT_CONFIRMED` from the send queue while retaining them in the checklist for audit. Only then assign one unused Codex URL and one unused API code to each remaining candidate and write the `READY`-only `distribution-list.csv`.
+
+Re-run the full source and inventory checks when the sheet, Luma state, or delivery checklist may have changed. Do not continue from a stale queue after a source update.
+
 ## Reconciliation and preflight
 
 Build a manifest before sending. Each candidate must have exactly one form row, one checked-in Luma record or documented manual link, one Codex URL, and one API code.
