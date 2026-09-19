@@ -40,6 +40,8 @@ Never approve, decline, check in, or otherwise mutate Luma while performing this
 
 Build a manifest before sending. Each candidate must have exactly one form row, one checked-in Luma record or documented manual link, one Codex URL, and one API code.
 
+Deduplicate before assigning inventory or creating the send queue. Group eligible form rows by normalized recipient handle, and allow at most one canonical row per normalized handle in the send manifest. Keep one row per group, preferably the earliest source row unless the organizer specifies another row, and mark every other duplicate row `HOLD` with reason `DUPLICATE_RECIPIENT`. If one row in a duplicate group is already `SENT_CONFIRMED`, all other rows in that group remain `HOLD`; never assign another credit pair or send again. The checklist may retain duplicate source rows for audit, but only the canonical row is sendable.
+
 The manifest should include:
 
 | Field | Required meaning |
