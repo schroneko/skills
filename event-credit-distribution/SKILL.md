@@ -9,6 +9,12 @@ Use this skill when an event organizer wants to determine eligible credit recipi
 
 The skill defines a workflow and safety boundary. It does not authorize external messages by itself. Before any send, require explicit user authorization for the recipients and message.
 
+Use the authorized transport already established for the event before selecting a fallback:
+
+- If a resident XChat app or authenticated XChat web session is available, prefer that existing route and verify its underlying send response. A resumed run must preserve the transport used by prior confirmed sends unless the organizer explicitly authorizes a change.
+- Do not launch a standalone XChat CLI merely because it is installed. The CLI is not the default transport for this workflow.
+- Treat an interactive `XChat PIN:` prompt as a CLI fallback condition, not as a required step. Only use the CLI PIN flow when the organizer explicitly chooses the CLI or the established transport is unavailable and the fallback is authorized. A PIN prompt alone is never evidence of a send.
+
 ## Inputs and outputs
 
 Collect or locate:
@@ -91,6 +97,8 @@ Codex inventory values may already be a bare `chatgpt.com/codex/p/<token>` URL, 
 
 Keep PINs, session tokens, passwords, and other credentials out of the message, skill, checklist, and logs. If the transport displays an `XChat PIN:` prompt, enter the PIN only into the designated terminal prompt and never into the chat composer or a saved artifact.
 
+Do not tell the organizer to enter a PIN just because the CLI is available. If the established app or web route does not require a PIN, there is no terminal PIN step. If an unexpected CLI prompt appears, stop the batch, preserve the unconfirmed state, and report the transport mismatch instead of switching routes or retrying.
+
 ## Sending and confirmation
 
 External sending is a mutation and requires explicit user authorization. Send one candidate at a time in manifest order unless the user specifies another order.
@@ -98,14 +106,14 @@ External sending is a mutation and requires explicit user authorization. Send on
 For each candidate:
 
 1. Set the local status to `ATTEMPTED` before submitting.
-2. Search the authorized XChat transport and select a result whose handle exactly equals the manifest recipient. A display-name match is not sufficient.
+2. Use the established authorized XChat transport and select a result whose handle exactly equals the manifest recipient. A display-name match is not sufficient. For a resident app or web session, use its existing conversation-selection path; do not replace it with the standalone CLI.
 3. Confirm the selected conversation belongs to that exact handle before inserting the message.
 4. Submit the fully rendered message once.
-5. Require a positive server-side confirmation: an expected successful send response with a nonempty message or event identifier and no API errors. An HTTP 200 status alone is not sufficient.
+5. Require a positive server-side confirmation from the selected transport. For the established XChat web or resident-app route, require the expected successful send response, HTTP 200, an encoded message event, no API errors, and nonempty conversation/message identifiers that match the exact target. For the CLI route, require its successful JSON response with nonempty conversation/message identifiers. An HTTP 200 status, an empty composer, or a changed local preview alone is not sufficient.
 6. Record the opaque response or message identifier, recipient handle, timestamp, and source row without recording the PIN or full secret values in logs.
 7. Only after confirmation, change the status to `SENT_CONFIRMED` and update the checklist.
 
-The composer becoming empty, a local preview changing, or a send button disappearing is not by itself confirmation. If the response, message ID, or recipient identity is uncertain, set the record to `UNKNOWN`, stop the batch, and do not retry. Do not proceed to another recipient while an attempted send is unknown unless the organizer explicitly resolves the state.
+The composer becoming empty, a local preview changing, or a send button disappearing is not by itself confirmation. If the response, message ID, or recipient identity is uncertain, set the record to `UNKNOWN`, stop the batch, and do not retry. If the route stops before submission at an unexpected CLI PIN prompt, do not mark the row sent and do not proceed to another recipient. Do not proceed to another recipient while an attempted send is unknown unless the organizer explicitly resolves the state.
 
 After a confirmed send, never resend the same credit pair to the same recipient because the conversation UI is stale or the message is not immediately visible. Refreshing or inspecting is allowed; retrying is not.
 
@@ -120,6 +128,7 @@ For a resumed run:
 - Re-read the current checklist and do not resend `SENT_CONFIRMED` rows.
 - Re-read `distribution-review.csv` and do not hide or bypass unresolved organizer-review rows.
 - Revalidate `UNKNOWN` rows against transport evidence before taking any action.
+- Reuse the transport and confirmation method recorded for prior confirmed sends; do not silently switch between the resident app/web route and the standalone CLI.
 - Recheck live Luma state when the snapshot may be stale.
 - Re-run code uniqueness checks for the remaining inventory.
 - Continue only with `READY` rows explicitly authorized by the user.
