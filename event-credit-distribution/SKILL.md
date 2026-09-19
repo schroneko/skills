@@ -19,7 +19,7 @@ Collect or locate:
 - The approved message template with placeholders such as `{{codex_url}}` and `{{api_code}}`.
 - Organizer exclusions and any direct organizer-confirmed identity links.
 
-Keep event data in the event workspace, not in this skill. A useful event workspace contains a Luma snapshot, a mapping report, source inventories, a deduplicated `distribution-list.csv` send queue, and `delivery-checklist.md`. Preserve existing filenames and local conventions when they already exist.
+Keep event data in the event workspace, not in this skill. A useful event workspace contains a Luma snapshot, a mapping report, source inventories, a `distribution-review.csv` organizer-review queue, a deduplicated `distribution-list.csv` send queue, and `delivery-checklist.md`. Preserve existing filenames and local conventions when they already exist.
 
 The final report must distinguish eligible, held, excluded, attempted, confirmed-sent, and unknown records. Link the checklist and mapping report when they are created or updated.
 
@@ -44,10 +44,11 @@ Use this order so a send queue cannot be built from a partial or mismatched sour
 2. Read the complete paginated Luma guest set through the read-only guest endpoint. Follow every cursor or `has_more` page, retain the source timestamp, and filter to records whose approval status is approved and whose current `checked_in` status is true.
 3. Inspect the required Luma registration answer for the X-handle question, such as the registration answer identified by `question_type-twitter`. Do not substitute the dedicated `twitter_handle` field when the required answer is populated elsewhere.
 4. Normalize the form handle and the required Luma answer by trimming whitespace, removing a leading `@`, extracting an X profile path handle when present, and comparing case-insensitively. Keep raw values, normalized values, Luma `api_id`, approval status, and check-in timestamp in the mapping.
-5. Keep only exact normalized matches. A typo, near-match, display-name match, email-only overlap, or a separate Luma record is a hold until the organizer explicitly confirms the identity and intended recipient. A documented manual link is an allowed exception, but it must retain the conflicting raw records and the organizer's reason.
+5. Use exact normalized matches for automatic eligibility. Every typo, near-match, display-name match, email-only overlap, separate Luma record, or other non-exact candidate must first be written to `distribution-review.csv` with the raw values, Luma `api_id`, reason, suggested recipient, and decision status. Surface that review queue to the organizer and ask for an explicit identity and intended-recipient decision; never silently omit a candidate before asking. A documented manual link is an allowed exception after that decision, but it must retain the conflicting raw records and the organizer's reason. An unresolved review row remains `HOLD` and cannot enter the send queue.
 6. Apply organizer exclusions before inventory assignment. A participant-entered organizer handle, an excluded form row, or any other explicit exclusion is `EXCLUDED` and must never enter the send queue.
 7. Deduplicate the remaining candidates by normalized recipient handle before assigning credits. Keep one canonical source row, preferably the earliest row, and mark every other row `HOLD`; if one duplicate was already sent, all other rows remain held.
-8. Remove candidates already marked `SENT_CONFIRMED` from the send queue while retaining them in the checklist for audit. Only then assign one unused Codex URL and one unused API code to each remaining candidate and write the `READY`-only `distribution-list.csv`.
+8. Resolve every `distribution-review.csv` row before finalizing the queue. Promote only organizer-approved identity and recipient decisions into the eligible set; keep rejected or unresolved rows out of the send queue with their decision visible in the review queue and checklist.
+9. Remove candidates already marked `SENT_CONFIRMED` from the send queue while retaining them in the checklist for audit. Only then assign one unused Codex URL and one unused API code to each remaining candidate and write the `READY`-only `distribution-list.csv`.
 
 Re-run the full source and inventory checks when the sheet, Luma state, or delivery checklist may have changed. Do not continue from a stale queue after a source update.
 
@@ -57,7 +58,7 @@ Build a manifest before sending. Each candidate must have exactly one form row, 
 
 Deduplicate before assigning inventory or creating the send queue. Group eligible form rows by normalized recipient handle, and allow at most one canonical row per normalized handle in the send manifest. Keep one row per group, preferably the earliest source row unless the organizer specifies another row, and mark every other duplicate row `HOLD` with reason `DUPLICATE_RECIPIENT`. If one row in a duplicate group is already `SENT_CONFIRMED`, all other rows in that group remain `HOLD`; never assign another credit pair or send again. The checklist may retain duplicate source rows for audit, but only the canonical row is sendable.
 
-Write the durable send queue after reconciliation. `distribution-list.csv` must contain only canonical, not-yet-sent rows with status `READY` that pass every eligibility, exclusion, duplicate, and inventory check. Do not include `SENT_CONFIRMED`, `HOLD`, `EXCLUDED`, or `UNKNOWN` rows in the send queue; retain those states in the checklist and mapping report for audit.
+Write the durable review queue and send queue after reconciliation. `distribution-review.csv` must contain every non-exact or ambiguous candidate and its organizer decision, including resolved exceptions. `distribution-list.csv` must contain only canonical, not-yet-sent rows with status `READY` that pass every eligibility, exclusion, duplicate, review, and inventory check. Do not include `SENT_CONFIRMED`, `HOLD`, `EXCLUDED`, or `UNKNOWN` rows in the send queue; retain those states in the review queue, checklist, and mapping report for audit.
 
 The manifest should include:
 
@@ -117,6 +118,7 @@ Use a durable checklist with one row per form response. A confirmed entry should
 For a resumed run:
 
 - Re-read the current checklist and do not resend `SENT_CONFIRMED` rows.
+- Re-read `distribution-review.csv` and do not hide or bypass unresolved organizer-review rows.
 - Revalidate `UNKNOWN` rows against transport evidence before taking any action.
 - Recheck live Luma state when the snapshot may be stale.
 - Re-run code uniqueness checks for the remaining inventory.
