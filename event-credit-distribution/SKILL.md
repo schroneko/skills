@@ -15,6 +15,15 @@ Use the authorized transport already established for the event before selecting 
 - Do not launch a standalone XChat CLI merely because it is installed. The CLI is not the default transport for this workflow.
 - Treat an interactive `XChat PIN:` prompt as a CLI fallback condition, not as a required step. Only use the CLI PIN flow when the organizer explicitly chooses the CLI or the established transport is unavailable and the fallback is authorized. A PIN prompt alone is never evidence of a send.
 
+Before every XChat Web send or retry, pass the transport state gate:
+
+- Reacquire the current authenticated XChat page or tab and verify its current URL. Never reuse a saved tab ID blindly. If the tab ID is invalid or the tab disappears, list current pages and attach to the live authenticated page before continuing.
+- Verify that the response-capture hook is installed and active before putting message text into the composer. For the Web route, capture both `fetch` and `XMLHttpRequest` send responses when either transport may be used, and retain metadata only. A missing hook, stale tab, or missing response capture is a preflight failure, not evidence of delivery.
+- After selecting the exact normalized handle, verify the current conversation route contains the selected account identity and that a composer exists.
+- Before any retry, scan the current conversation for an existing message node containing both the exact Codex URL `href` and the exact API redemption URL `href`. If found, record that message as confirmed and never resend the credit pair.
+- If the composer is non-empty and no existing exact-credit message is found, treat the value as a stale draft from the failed attempt. Clear it through the normal app/native value setter and input event, verify that it is empty, and only then render and insert the current message. Never overwrite or submit an unverified residual draft.
+- Keep response capture active from before message input through confirmation. If the page changes or disappears during this gate, stop the candidate before submission and reacquire the transport on an explicitly authorized retry.
+
 ## Inputs and outputs
 
 Collect or locate:
@@ -105,15 +114,16 @@ External sending is a mutation and requires explicit user authorization. Send on
 
 For each candidate:
 
-1. Set the local status to `ATTEMPTED` before submitting.
-2. Use the established authorized XChat transport and select a result whose handle exactly equals the manifest recipient. A display-name match is not sufficient. For a resident app or web session, use its existing conversation-selection path; do not replace it with the standalone CLI.
-3. Confirm the selected conversation belongs to that exact handle before inserting the message.
-4. Submit the fully rendered message once.
-5. Require a positive server-side confirmation from the selected transport. For the established XChat web or resident-app route, require the expected successful send response, HTTP 200, an encoded message event, no API errors, and nonempty conversation/message identifiers that match the exact target. When the transport wrapper does not expose the identifiers directly, inspect the rendered conversation DOM for a new `data-testid="message-text-<opaque-id>"` element and record that opaque message identifier together with the current `/i/chat/` conversation route; wrapper booleans alone must not turn a positively rendered, server-confirmed message into `UNKNOWN`. Verify the new message node has anchor `href` values for the normalized Codex URL and the exact API redemption URL. Do not require raw URL text in `innerText`, because the UI may render a link label separately from its `href`. For the CLI route, require its successful JSON response with nonempty conversation/message identifiers. An HTTP 200 status, an empty composer, or a changed local preview alone is not sufficient.
-6. Record the opaque response or message identifier, recipient handle, timestamp, and source row without recording the PIN or full secret values in logs.
-7. Only after confirmation, change the status to `SENT_CONFIRMED` and update the checklist.
+1. Pass the XChat Web transport state gate before putting message text into the composer.
+2. Set the local status to `ATTEMPTED` before submitting.
+3. Use the established authorized XChat transport and select a result whose handle exactly equals the manifest recipient. A display-name match is not sufficient. For a resident app or web session, use its existing conversation-selection path; do not replace it with the standalone CLI.
+4. Confirm the selected conversation belongs to that exact handle, confirm that no identical credit pair is already rendered, and confirm that the composer is empty before inserting the message.
+5. Submit the fully rendered message once.
+6. Require a positive server-side confirmation from the selected transport. For the established XChat web or resident-app route, require the expected successful send response, HTTP 200, an encoded message event, no API errors, and nonempty conversation/message identifiers that match the exact target. When the transport wrapper does not expose the identifiers directly, inspect the rendered conversation DOM for a new `data-testid="message-text-<opaque-id>"` element and record that opaque message identifier together with the current `/i/chat/` conversation route; wrapper booleans alone must not turn a positively rendered, server-confirmed message into `UNKNOWN`. Verify the new message node has anchor `href` values for the normalized Codex URL and the exact API redemption URL. Do not require raw URL text in `innerText`, because the UI may render a link label separately from its `href`. For the CLI route, require its successful JSON response with nonempty conversation/message identifiers. An HTTP 200 status, an empty composer, or a changed local preview alone is not sufficient.
+7. Record the opaque response or message identifier, recipient handle, timestamp, and source row without recording the PIN or full secret values in logs.
+8. Only after confirmation, change the status to `SENT_CONFIRMED` and update the checklist.
 
-The composer becoming empty, a local preview changing, or a send button disappearing is not by itself confirmation. If the response, message ID, or recipient identity is uncertain, set the record to `UNKNOWN`, stop the batch, and do not retry. If the route stops before submission at an unexpected CLI PIN prompt, do not mark the row sent and do not proceed to another recipient. Do not proceed to another recipient while an attempted send is unknown unless the organizer explicitly resolves the state.
+The composer becoming empty, a local preview changing, or a send button disappearing is not by itself confirmation. If the response, message ID, or recipient identity is uncertain, set the record to `UNKNOWN`, stop the batch, and do not retry. If the route stops before submission at an unexpected CLI PIN prompt, do not mark the row sent and do not proceed to another recipient. Do not proceed to another recipient while an attempted send is unknown unless the organizer explicitly resolves the state. An organizer-authorized retry must first reacquire the current tab, reinitialize response capture, scan for an existing exact-credit message, clear any stale composer draft, and verify the exact conversation again before submitting once.
 
 After a confirmed send, never resend the same credit pair to the same recipient because the conversation UI is stale or the message is not immediately visible. Refreshing or inspecting is allowed; retrying is not.
 
@@ -128,6 +138,7 @@ For a resumed run:
 - Re-read the current checklist and do not resend `SENT_CONFIRMED` rows.
 - Re-read `distribution-review.csv` and do not hide or bypass unresolved organizer-review rows.
 - Revalidate `UNKNOWN` rows against transport evidence before taking any action.
+- For an explicitly authorized retry of an `UNKNOWN` row, perform the full XChat Web transport state gate: reacquire the live tab, verify fetch/XHR response capture, inspect for an already-rendered exact-credit message, clear and verify any stale composer draft, and only then submit once.
 - Reuse the transport and confirmation method recorded for prior confirmed sends; do not silently switch between the resident app/web route and the standalone CLI.
 - Recheck live Luma state when the snapshot may be stale.
 - Re-run code uniqueness checks for the remaining inventory.
