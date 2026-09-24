@@ -120,47 +120,32 @@ npm cache clean --force
 npx -y chrome-devtools-mcp@latest --help
 ```
 
-### DevToolsActivePort が古い (autoConnect)
+### autoConnect が DevToolsActivePort エラーで失敗する
 
-autoConnect は `~/Library/Application Support/Google/Chrome/DevToolsActivePort` を読んで接続する。Chrome の異常終了や `pkill` による強制終了でこのファイルが古くなり、ファイルにポート番号が書かれていても実際にはリッスンしていない状態になる。
+`Could not find DevToolsActivePort` だけでは、ファイルが古いことや Remote debugging が無効なことの証拠にならない。ユーザーのログイン済み Chrome を終了したり、DevToolsActivePort を削除したりせず、まず読み取り専用で状態を切り分ける。
 
-`list_pages` で "Could not find DevToolsActivePort" エラーが出たら、まずこのファイルの鮮度を疑う。
+1. Chrome のプロセスと DevToolsActivePort の内容を確認する。
+2. ファイルに記載されたポートの待受を `lsof -nP -iTCP:<ポート番号> -sTCP:LISTEN` で確認する。
+3. `http://127.0.0.1:<ポート番号>/json/version` の応答を確認する。
+4. Chrome DevTools MCP の daemon status、ログ、target routing、および CLI の `status`、`list_pages` または `new_page`、`navigate_page`、`take_snapshot` を確認する。
 
-診断手順:
+待受がなく、ファイルのポートと一致しない場合は stale file の可能性があるが、確認のために Chrome を強制終了したりファイルを削除したりしない。Remote debugging の無効を報告するのは、設定画面の無効表示またはそれを直接示すエラーを確認した場合だけにする。
 
-1. Read ツールでファイルの内容を確認:
+Chrome 153 の通常プロファイルでは、ポート 9222 の待受がある一方で `/json/version` が 404 を返し、`--autoConnect` が `Could not find DevToolsActivePort` で失敗する状態を確認した。[Chrome DevTools MCP issue 2283](https://github.com/ChromeDevTools/chrome-devtools-mcp/issues/2283) には Chrome 150 で同じ症状の報告があるが、同一原因とは限らない。通常経路で接続できない場合は、設定を変えずに次のネイティブCDPブリッジを確認する。
 
-```
-Read: ~/Library/Application Support/Google/Chrome/DevToolsActivePort
-```
+### AutoClick ネイティブCDPブリッジへの切替
 
-1 行目にポート番号（例: 9222）、2 行目に WebSocket パスが書かれている。
-
-2. ファイルに書かれたポートが実際にリッスンしているか確認:
-
-```bash
-lsof -i :<ポート番号>
-```
-
-3. `lsof` の出力が空（Exit code 1）ならファイルが古い。以下で修復:
+インストール済みの場合、まずブリッジの状態を確認する。
 
 ```bash
-rm ~/Library/Application\ Support/Google/Chrome/DevToolsActivePort
-pkill -9 "Google Chrome"
+/Applications/AutoClickCDPPopup.app/Contents/MacOS/auto-click-cdp-popup --bridge-status
 ```
 
-`pkill -TERM` では Chrome のサブプロセスが残ることがある。`pkill -9` で確実に全プロセスを終了させる。
+`--bridge-status` が利用可能な場合は `--bridge-request` で `tabs.list`、`debugger.attach`、`debugger.command`、`debugger.detach` を呼び出せる。タブ一覧には他のタブの URL も含まれるため、ユーザーが指定した対象 URL に絞ってから結果を表示する。毎回最新のタブ ID を取得し、対象タブだけに接続する。
 
-4. 完全終了を待ってから再起動:
+対象タブへ attach 後、CDP コマンドを `debugger.command` で送る。要素をクリックするときは、DOM から対象要素を特定し、`DOM.scrollIntoViewIfNeeded` と `DOM.getBoxModel` で表示位置を確認してから、`Input.dispatchMouseEvent` の mouseMoved、mousePressed、mouseReleased をその位置へ送る。完了後は必ず `debugger.detach` する。
 
-```bash
-sleep 4
-open -a "Google Chrome"
-```
-
-5. 起動後 5 秒ほど待ってから Read ツールで新しい DevToolsActivePort の内容を確認し、`list_pages` で接続テストする。
-
-`chrome://inspect/#remote-debugging` の設定は Chrome 再起動後も維持される。
+この経路は Chrome の CDP コマンドを中継する。AutoClick の自動クリック watcher や Accessibility 操作とは別なので、ブリッジ用途では `--bridge-status` と `--bridge-request` だけを使う。
 
 ### --remote-debugging-port は使わない (Chrome 144+)
 
@@ -170,4 +155,4 @@ Chrome 144+ では `--remote-debugging-port` にデフォルトのユーザー�
 
 `--user-data-dir` を指定すれば動くが、別プロファイルになりログイン状態が失われる。`open -a "Google Chrome" --args --remote-debugging-port=9222` も同じ理由で機能しない。
 
-autoConnect モードを使うこと。autoConnect なら通常のプロファイルでログイン状態が維持される。
+通常は autoConnect を使う。接続できない場合は上記の読み取り診断とネイティブCDPブリッジへの切替を行い、別プロファイルを起動してログイン状態を失わないようにする。
