@@ -41,7 +41,7 @@ op whoami --format json
 
 Use the user's existing desktop app integration for authentication. If authentication fails, report the specific app approval or unlock step required. Do not switch to service-account tokens or `op signin`.
 
-`op environment read` remains beta-only and is not required for normal Environment access. Do not install a beta CLI to use this skill. See the [official Environment CLI documentation](https://www.1password.dev/environments/read-environment-variables).
+`op run --environment` became generally available in stable CLI 2.41.0 on 2026-10-12. Use this supported stable workflow for Environment access. See the [official CLI release notes](https://releases.1password.com/developers/cli/).
 
 Verify Environment access without returning its contents.
 

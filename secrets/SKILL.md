@@ -29,7 +29,7 @@ Environment はシークレットの保管先であり、認証主体とは別�
 
 ## 実行前確認
 
-実行中の 1Password CLI のバージョンと `op run` の `--environment` 対応、認証主体を確認する。stable 版 2.41.0 以降で `op run --environment` を利用できる。`op environment read` は beta 限定の別コマンドであり、Environment 利用の前提にしない。Environment 利用のために beta 版へ切り替えない。[公式手順](https://www.1password.dev/environments/read-environment-variables)
+実行中の 1Password CLI のバージョンと `op run` の `--environment` 対応、認証主体を確認する。`op run --environment` は 2026-10-12 に一般提供され、stable 版 2.41.0 以降で正式に利用できる。[公式リリースノート](https://releases.1password.com/developers/cli/)、[公式手順](https://www.1password.dev/environments/read-environment-variables)
 
 ```sh
 op --version
